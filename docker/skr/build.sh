@@ -9,7 +9,7 @@ set -e
 
 mkdir bin
 pushd bin
-CGO_ENABLED=0 GOOS=linux go build github.com/Microsoft/confidential-sidecard-containers/cmd/skr
+CGO_ENABLED=0 GOOS=linux go build github.com/Microsoft/confidential-sidecar-containers/cmd/skr
 popd
 
 pushd ../../tools/get-snp-report

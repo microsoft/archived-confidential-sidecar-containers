@@ -12,10 +12,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
 	"github.com/gin-gonic/gin"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/attest"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/common"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/skr"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

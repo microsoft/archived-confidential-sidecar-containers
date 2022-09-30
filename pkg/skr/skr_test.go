@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/common"
 	"github.com/pkg/errors"
 )
 

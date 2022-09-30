@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//go:build linux
 // +build linux
 
 package main
@@ -17,9 +18,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/attest"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/common"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/skr"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"

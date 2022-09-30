@@ -11,9 +11,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/attest"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/common"
-	"github.com/Microsoft/confidential-sidecard-containers/pkg/skr"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
 	"github.com/sirupsen/logrus"
 )
 
