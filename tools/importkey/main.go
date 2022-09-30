@@ -14,8 +14,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/microsoft/confidential-sidecars/pkg/common"
-	"github.com/microsoft/confidential-sidecars/pkg/skr"
+	"github.com/Microsoft/confidential-sidecard-containers/pkg/common"
+	"github.com/Microsoft/confidential-sidecard-containers/pkg/skr"
 )
 
 type importKeyConfig struct {
