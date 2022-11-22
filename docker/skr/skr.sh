@@ -11,14 +11,20 @@ fi
 
 echo SkrSideCarArgs = $SkrSideCarArgs
 
+if [[ -z "${Port}" ]]; then
+  Port=$2
+else 
+  Port = "8080"
+fi
+
 if [[ -z "${SkrSideCarArgs}" ]]; then
-  if /bin/skr -logfile /log.txt; then
+  if /bin/skr -logfile ./log.txt -port $Port; then
     echo "1" > result
   else
     echo "0" > result
   fi
 else 
-  if /bin/skr -logfile /log.txt -base64 $SkrSideCarArgs; then
+  if /bin/skr -logfile ./log.txt -base64 $SkrSideCarArgs -port $Port; then
       echo "1" > result
   else
       echo "0" > result
