@@ -3,6 +3,7 @@
 
 package attest
 
+
 import (
 	"encoding/binary"
 	"encoding/pem"
@@ -82,3 +83,4 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 func (certCache CertCache) GetCertChain(chipID string, reportedTCB uint64) ([]byte, error) {
 	return certCache.retrieveCertChain(chipID, reportedTCB)
 }
+

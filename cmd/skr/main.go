@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	Identity              common.Identity
-	ServerCertCache       attest.CertCache
-	EncodedSecurityPolicy string
+	Identity common.Identity
+	//ServerCertCache       attest.CertCache
+	EncodedUvmInformation common.UvmInformation
 	ready                 bool
 )
 
@@ -32,7 +32,7 @@ type AzureInformation struct {
 	// the certificate chain endorsing hardware attestations
 	// can be retrieved. This is optinal only when the container
 	// will expose attest/maa and key/release APIs.
-	CertCache attest.CertCache `json:"certcache,omitempty"`
+	// NA now that the certs are provided by an environment variable. CertCache attest.CertCache `json:"certcache,omitempty"`
 	// Identifier of the managed identity to be used
 	// for authenticating with AKV MHSM. This is optional and
 	// useful only when the container group has been assigned
@@ -96,7 +96,7 @@ func postRawAttest(c *gin.Context) {
 	}
 
 	// base64 decode the incoming encoded security policy
-	inittimeDataBytes, err := base64.StdEncoding.DecodeString(EncodedSecurityPolicy)
+	inittimeDataBytes, err := base64.StdEncoding.DecodeString(EncodedUvmInformation.EncodedSecurityPolicy)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": errors.Wrap(err, "decoding policy from Base64 format failed").Error()})
@@ -134,7 +134,7 @@ func postMAAAttest(c *gin.Context) {
 	}
 
 	// base64 decode the incoming encoded security policy
-	inittimeDataBytes, err := base64.StdEncoding.DecodeString(EncodedSecurityPolicy)
+	inittimeDataBytes, err := base64.StdEncoding.DecodeString(EncodedUvmInformation.EncodedSecurityPolicy)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": errors.Wrap(err, "decoding policy from Base64 format failed").Error()})
@@ -154,7 +154,11 @@ func postMAAAttest(c *gin.Context) {
 		APIVersion: "api-version=2020-10-01",
 	}
 
-	maaToken, err := attest.Attest(ServerCertCache, maa, inittimeDataBytes, runtimeDataBytes)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	}
+
+	maaToken, err := attest.Attest(EncodedUvmInformation, maa, inittimeDataBytes, runtimeDataBytes)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
@@ -197,10 +201,11 @@ func postKeyRelease(c *gin.Context) {
 		MHSM:      mhsm,
 	}
 
-	// MHSM has limit on the request size. We do not pass the EncodedSecurityPolicy here so
+	// MHSM has limit on the request size. We ask not pass the EncodedSecurityPolicy here so
 	// it is not presented as fine-grained init-time claims in the MAA token, which would
 	// introduce larger MAA tokens that MHSM would accept
-	keyBytes, err := skr.SecureKeyRelease("", ServerCertCache, Identity, skrKeyBlob)
+	// TODO review now we have rego policy
+	keyBytes, err := skr.SecureKeyRelease(EncodedUvmInformation, Identity, skrKeyBlob, true)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -210,12 +215,13 @@ func postKeyRelease(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"key": hex.EncodeToString(keyBytes)})
 }
 
-func setupServer(certCache attest.CertCache, identity common.Identity) *gin.Engine {
-	EncodedSecurityPolicy = os.Getenv("SECURITY_POLICY")
-	ServerCertCache = certCache
+func setupServer(identity common.Identity) *gin.Engine {
+
 	Identity = identity
 
-	logrus.Debugf("Setting security policy to %s", EncodedSecurityPolicy)
+	logrus.Debugf("Setting security policy to %s", EncodedUvmInformation.EncodedSecurityPolicy)
+	logrus.Debugf("Setting platform certs to %s", EncodedUvmInformation.CertChain)
+	logrus.Debugf("Setting uvm reference to %s", EncodedUvmInformation.EncodedUvmReferenceInfo)
 
 	r := gin.Default()
 
@@ -225,9 +231,9 @@ func setupServer(certCache attest.CertCache, identity common.Identity) *gin.Engi
 	// the implementation of attest/maa and key/release APIs call MAA service
 	// to retrieve a MAA token. The MAA API requires that the request carries
 	// the certificate chain endording the signing key of the hardware attestation.
-	// Hence, these APIs are exposed only if the certificate cache service information
+	// Hence, these APIs are exposed only if the platform certificate information
 	// has been provided at startup time.
-	if ServerCertCache.Endpoint != "" {
+	if EncodedUvmInformation.CertChain != "" {
 		r.POST("/attest/maa", postMAAAttest)
 		r.POST("/key/release", postKeyRelease)
 	}
@@ -243,6 +249,7 @@ func main() {
 	logLevel := flag.String("loglevel", "debug", "Logging Level: trace, debug, info, warning, error, fatal, panic.")
 	logFile := flag.String("logfile", "", "Logging Target: An optional file name/path. Omit for console output.")
 	port := flag.String("port", "8080", "Port on which to listen")
+	hostname := flag.String("hostname", "localhost", "address on which to listen (dangerous)")
 
 	flag.Usage = usage
 
@@ -263,6 +270,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 	logrus.SetLevel(level)
+	logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: false, DisableQuote: true, DisableTimestamp: true})
 
 	logrus.Infof("Starting %s...", os.Args[0])
 
@@ -271,6 +279,11 @@ func main() {
 	logrus.Debugf("   Log File:  %s", *logFile)
 	logrus.Debugf("   Port: %s", *port)
 	logrus.Debugf("   certificate cache:    %s", *azureInfoBase64string)
+
+	EncodedUvmInformation, err = common.GetUvmInfomation() // from the env.
+	if err != nil {
+		logrus.Fatalf("Failed to extract UVM_* environment variables: %s", err.Error())
+	}
 
 	info := AzureInformation{}
 
@@ -287,6 +300,6 @@ func main() {
 		}
 	}
 
-	url := "localhost:" + *port
-	setupServer(info.CertCache, info.Identity).Run(url)
+	url := *hostname + ":" + *port
+	setupServer(info.Identity).Run(url)
 }

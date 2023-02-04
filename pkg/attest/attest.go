@@ -5,8 +5,10 @@ package attest
 
 import (
 	"encoding/hex"
+	"io/ioutil"
 	"os"
 
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -36,10 +38,13 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 // (A) the attestation report signed by the PSP signing key
 // (B) a certificate chain that endorses the signing key of the attestation report
 // (C) inittime data: this is the policy blob that has been hashed by the host OS during the utility
-//     VM bringup and has been reported by the PSP in the attestation report as HOST DATA
+//
+//	VM bringup and has been reported by the PSP in the attestation report as HOST DATA
+//
 // (D) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
-//     retrieval and has been reported by the PSP in the attestation report as REPORT DATA
-func Attest(certCache CertCache, maa MAA, inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error) {
+//
+//	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
+func Attest(uvmInformation common.UvmInformation, maa MAA, inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error) {
 
 	logrus.Debugf("   inittimeDataBytes:    %v", inittimeDataBytes)
 
@@ -58,6 +63,7 @@ func Attest(certCache CertCache, maa MAA, inittimeDataBytes []byte, runtimeDataB
 		return "", errors.Wrapf(err, "fetching snp report failed")
 	}
 
+	ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
 	logrus.Debugf("   SNPReportBytes:    %v", SNPReportBytes)
 
 	// Retrieve the certificate chain using the chip identifier and platform version
@@ -67,13 +73,10 @@ func Attest(certCache CertCache, maa MAA, inittimeDataBytes []byte, runtimeDataB
 		return "", errors.Wrapf(err, "failed to deserialize attestation report")
 	}
 
-	vcekCertChain, err := certCache.retrieveCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
-	if err != nil {
-		return "", errors.Wrapf(err, "retrieving cert chain from CertCache endpoint failed")
-	}
+	vcekCertChain := []byte(uvmInformation.CertChain)
 
 	// Retrieve the MAA token required by the request's MAA endpoint
-	maaToken, err := maa.attest(SNPReportBytes, vcekCertChain, inittimeDataBytes, runtimeDataBytes)
+	maaToken, err := maa.attest(uvmInformation.EncodedUvmReferenceInfo, SNPReportBytes, vcekCertChain, inittimeDataBytes, runtimeDataBytes)
 	if err != nil || maaToken == "" {
 		return "", errors.Wrapf(err, "retrieving MAA token from MAA endpoint failed")
 	}

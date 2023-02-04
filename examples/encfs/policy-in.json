@@ -23,7 +23,7 @@
             ]
         },        
         {            
-            "containerImage": "docker.io/alpine:3.13",
+            "containerImage": "docker.io/alpine:3.17.1",
             "environmentVariables": [],
             "command": [     
                 "/bin/bash",

@@ -15,6 +15,8 @@ echo building azmount
 CGO_ENABLED=0 GOOS=linux go build github.com/Microsoft/confidential-sidecar-containers/cmd/azmount
 echo building remotefs
 CGO_ENABLED=0 GOOS=linux go build github.com/Microsoft/confidential-sidecar-containers/cmd/remotefs
+echo building decoder
+CGO_ENABLED=0 GOOS=linux go build github.com/Microsoft/confidential-sidecar-containers/cmd/decoder
 popd
 
 echo building get-snp-report

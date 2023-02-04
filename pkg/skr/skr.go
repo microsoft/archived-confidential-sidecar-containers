@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+
 const (
 	ResourceIdManagedHSM = "https%3A%2F%2Fmanagedhsm.azure.net"
 )
@@ -42,7 +43,7 @@ type KeyBlob struct {
 //
 // TO-DO: The if fetchSNPReportFlag codebase will be removed when pushed to public repo. It is here to
 // allow testing on non-snp hw with fixed attestation reports.
-func SecureKeyRelease(EncodedSecurityPolicy string, certCache attest.CertCache, identity common.Identity, SKRKeyBlob KeyBlob) (_ []byte, err error) {
+func SecureKeyRelease(uvmInformation common.UvmInformation, identity common.Identity, SKRKeyBlob KeyBlob, noInitTimeData bool) (_ []byte, err error) {
 
 	logrus.Debugf("Releasing key blob: %v", SKRKeyBlob)
 
@@ -65,20 +66,20 @@ func SecureKeyRelease(EncodedSecurityPolicy string, certCache attest.CertCache, 
 		return nil, errors.Wrapf(err, "generating key blob failed")
 	}
 
-	// base64 decode the incoming encoded security policy
-	if EncodedSecurityPolicy == "" {
-		maaToken, err = attest.Attest(certCache, SKRKeyBlob.Authority, nil, jwkSetBytes)
+	// if present base64 decode the incoming encoded security policy to pass as init time data
+	if (uvmInformation.EncodedSecurityPolicy == "" || noInitTimeData) {
+		maaToken, err = attest.Attest(uvmInformation, SKRKeyBlob.Authority, nil, jwkSetBytes)
 		if err != nil {
 			return nil, errors.Wrapf(err, "attestation failed")
 		}
 	} else {
-		policyBlobBytes, err := base64.StdEncoding.DecodeString(EncodedSecurityPolicy)
+		policyBlobBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedSecurityPolicy)
 		if err != nil {
 			return nil, errors.Wrap(err, "decoding policy from Base64 format failed")
 		}
 
 		// Attest
-		maaToken, err = attest.Attest(certCache, SKRKeyBlob.Authority, policyBlobBytes, jwkSetBytes)
+		maaToken, err = attest.Attest(uvmInformation, SKRKeyBlob.Authority, policyBlobBytes, jwkSetBytes)
 		if err != nil {
 			return nil, errors.Wrapf(err, "attestation failed")
 		}
