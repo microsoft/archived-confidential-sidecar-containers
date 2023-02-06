@@ -21,18 +21,12 @@ import (
 )
 
 var (
-	Identity common.Identity
-	//ServerCertCache       attest.CertCache
+	Identity              common.Identity
 	EncodedUvmInformation common.UvmInformation
 	ready                 bool
 )
 
 type AzureInformation struct {
-	// Endpoint of the certificate cache service from which
-	// the certificate chain endorsing hardware attestations
-	// can be retrieved. This is optinal only when the container
-	// will expose attest/maa and key/release APIs.
-	// NA now that the certs are provided by an environment variable. CertCache attest.CertCache `json:"certcache,omitempty"`
 	// Identifier of the managed identity to be used
 	// for authenticating with AKV MHSM. This is optional and
 	// useful only when the container group has been assigned

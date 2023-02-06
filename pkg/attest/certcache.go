@@ -3,6 +3,12 @@
 
 package attest
 
+/*
+	This is no longer required as these platform certificates from AMD are
+	now provided by GCS to containers as an environment variable UVM_HOST_AMD_CERTIFICATE
+
+	It will be removed eventually but is required for the tests at present.
+*/
 
 import (
 	"encoding/binary"
@@ -83,4 +89,3 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 func (certCache CertCache) GetCertChain(chipID string, reportedTCB uint64) ([]byte, error) {
 	return certCache.retrieveCertChain(chipID, reportedTCB)
 }
-

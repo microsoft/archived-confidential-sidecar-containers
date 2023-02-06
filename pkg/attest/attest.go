@@ -33,15 +33,16 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 	return hex.EncodeToString(SNPReportBytes), nil
 }
 
-// Attest interacts with certcache and maa services to fetch an MAA token
+// Attest interacts with maa services to fetch an MAA token
 // MAA expects four attributes:
 // (A) the attestation report signed by the PSP signing key
 // (B) a certificate chain that endorses the signing key of the attestation report
-// (C) inittime data: this is the policy blob that has been hashed by the host OS during the utility
+// (C) reference information that provides evidence that the UVM image is genuine.
+// (D) inittime data: this is the policy blob that has been hashed by the host OS during the utility
 //
 //	VM bringup and has been reported by the PSP in the attestation report as HOST DATA
 //
-// (D) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
+// (E) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
 //
 //	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
 func Attest(uvmInformation common.UvmInformation, maa MAA, inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error) {

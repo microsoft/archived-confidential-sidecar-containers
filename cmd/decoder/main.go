@@ -301,7 +301,7 @@ var scanCmd = cli.Command{
 		var counts [256]int
 		var lastPosn [256]int
 		// I guess I don't really need this.
-		for i, _ := range counts {
+		for i := range counts {
 			counts[i] = 0
 			lastPosn[i] = 0
 		}

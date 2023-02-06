@@ -40,13 +40,11 @@ var (
 )
 
 var (
-	Identity common.Identity
-	// CertCache             	attest.CertCache
+	Identity              common.Identity
 	EncodedUvmInformation common.UvmInformation
-	// EncodedSecurityPolicy string
 	// for testing encrypted filesystems without releasing secrets from
 	// MHSM allowTestingWithRawKey needs to be set to true and a raw key
-	// needs to have been provided. default mode is that such testing is
+	// needs to have been provided. Default mode is that such testing is
 	// disabled.
 	allowTestingWithRawKey = false
 )
@@ -182,9 +180,7 @@ func releaseRemoteFilesystemKey(tempDir string, keyBlob skr.KeyBlob) (keyFilePat
 
 	fmt.Println("EncodedSecurityPolicy: ", EncodedUvmInformation.EncodedSecurityPolicy)
 
-	// 2) release key identified by keyBlob using encoded security policy and certcache
-	//    certcache is required for validating the attestation report against the cert
-	//    chain of the chip identified in the attestation report
+	// 2) release key identified by keyBlob using encoded security policy
 
 	keyBytes := make([]byte, 64)
 
