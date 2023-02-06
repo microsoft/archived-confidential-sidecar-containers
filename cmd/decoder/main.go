@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
@@ -26,6 +25,83 @@ import (
 
 	There are also options around the padding at the end "=" vs none.
 */
+
+// remove liklely whitespace from base64/base64url encoded data from files
+// often there is a linefeed at the end.
+// The library claims this is not required but it is helpful debugging
+// Raw vs Std issues
+
+func cleanData(data []byte) []byte {
+	beforeLen := len(data)
+	var empty []byte
+	// inefficient but the files involved are only a few k bytes.
+	data = bytes.Replace(data, []byte(" "), empty, -1)
+	data = bytes.Replace(data, []byte("\n"), empty, -1)
+	data = bytes.Replace(data, []byte("\t"), empty, -1)
+	data = bytes.Replace(data, []byte("\r"), empty, -1)
+	data = bytes.Replace(data, []byte{0}, empty, -1)
+	afterLen := len(data)
+	if beforeLen != afterLen {
+		fmt.Printf("cleaned %d bytes\n", beforeLen-afterLen)
+	}
+	return data
+}
+
+var stdBytes []byte = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+var urlBytes []byte = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+
+func isStdByte(b byte) bool {
+	for _, stdByte := range stdBytes {
+		if b == stdByte {
+			return true
+		}
+	}
+	return false
+}
+
+func isUrlByte(b byte) bool {
+	for _, urlByte := range urlBytes {
+		if b == urlByte {
+			return true
+		}
+	}
+	return false
+}
+
+// we have url vs std and raw (changes padding rules) vs not
+// the example seems to need to be decoded with raw
+
+func encodingForModes(url bool, raw bool) *base64.Encoding {
+	if url {
+		if raw {
+			return base64.RawURLEncoding
+		} else {
+			return base64.URLEncoding
+		}
+	} else {
+		if raw {
+			return base64.RawStdEncoding
+		} else {
+			return base64.StdEncoding
+		}
+	}
+}
+
+func descriptionForModes(url bool, raw bool) string {
+	if url {
+		if raw {
+			return "RawURL"
+		} else {
+			return "URL"
+		}
+	} else {
+		if raw {
+			return "RawStd"
+		} else {
+			return "Std"
+		}
+	}
+}
 
 var decodeCmd = cli.Command{
 	Name:  "decode",
@@ -49,40 +125,34 @@ var decodeCmd = cli.Command{
 			Name:  "clean,c",
 			Usage: "remove whitespace of all sorts",
 		},
+		cli.BoolFlag{
+			Name:  "raw,r",
+			Usage: "use raw version of encoding (no padding)",
+		},
 	},
 	Action: func(ctx *cli.Context) error {
 		inFilename := ctx.String("input")
 		outFilename := ctx.String("output")
 		urlMode := ctx.Bool("url")
+		rawMode := ctx.Bool("raw")
 		clean := ctx.Bool("clean")
+
 		inData, err := ioutil.ReadFile(inFilename)
-		if clean {
-			beforeLen := len(inData)
-			var empty []byte
-			inData = bytes.Replace(inData, []byte(" "), empty, -1)
-			inData = bytes.Replace(inData, []byte("\n"), empty, -1)
-			inData = bytes.Replace(inData, []byte("\t"), empty, -1)
-			inData = bytes.Replace(inData, []byte("\r"), empty, -1)
-			inData = bytes.Replace(inData, []byte{0}, empty, -1)
-			afterLen := len(inData)
-			if beforeLen != afterLen {
-				fmt.Printf("cleaned %d bytes\n", beforeLen-afterLen)
-			}
-		}
 		if err != nil {
 			return errors.Wrapf(err, "failed to read input file.")
 		}
 
-		var outData []byte
-
-		if urlMode == false {
-			outData, err = base64.StdEncoding.DecodeString(string(inData))
-		} else {
-			outData, err = base64.URLEncoding.DecodeString(string(inData))
+		if clean {
+			inData = cleanData(inData)
 		}
 
+		var outData []byte
+
+		encoding := encodingForModes(urlMode, rawMode)
+		outData, err = encoding.DecodeString(string(inData))
 		if err != nil {
-			return errors.Wrapf(err, "failed to decode.")
+			description := descriptionForModes(urlMode, rawMode)
+			return errors.Wrapf(err, "failed to decode in mode %s -", description)
 		}
 
 		err = ioutil.WriteFile(outFilename, outData, 0644)
@@ -123,7 +193,7 @@ var encodeCmd = cli.Command{
 
 		var outData string
 
-		if urlMode == false {
+		if !urlMode {
 			outData = base64.StdEncoding.EncodeToString(inData)
 		} else {
 			outData = base64.URLEncoding.EncodeToString(inData)
@@ -146,12 +216,22 @@ var detectCmd = cli.Command{
 			Usage: "input binary file",
 			Value: "input.base64",
 		},
+		cli.BoolFlag{
+			Name:  "clean,c",
+			Usage: "remove whitespace of all sorts",
+		},
 	},
 	Action: func(ctx *cli.Context) error {
 		inFilename := ctx.String("input")
 		inData, err := ioutil.ReadFile(inFilename)
+		clean := ctx.Bool("clean")
+
 		if err != nil {
 			return errors.Wrapf(err, "failed to read input file.")
+		}
+
+		if clean {
+			inData = cleanData(inData)
 		}
 
 		var isStandard = false
@@ -186,27 +266,6 @@ var detectCmd = cli.Command{
 	},
 }
 
-var stdBytes []byte = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
-var urlBytes []byte = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
-
-func isStdByte(b byte) bool {
-	for _, stdByte := range stdBytes {
-		if b == stdByte {
-			return true
-		}
-	}
-	return false
-}
-
-func isUrlByte(b byte) bool {
-	for _, urlByte := range urlBytes {
-		if b == urlByte {
-			return true
-		}
-	}
-	return false
-}
-
 var scanCmd = cli.Command{
 	Name:  "scan",
 	Usage: "",
@@ -236,18 +295,7 @@ var scanCmd = cli.Command{
 		}
 
 		if clean {
-			beforeLen := len(inData)
-			str := string(inData)
-			str = strings.ReplaceAll(str, " ", "")
-			str = strings.ReplaceAll(str, "\r", "")
-			str = strings.ReplaceAll(str, "\n", "")
-			str = strings.ReplaceAll(str, "\t", "")
-			str = strings.ReplaceAll(str, "\000", "")
-			inData = []byte(str)
-			afterLen := len(inData)
-			if beforeLen != afterLen {
-				fmt.Printf("cleaned %d byte(s)\n", beforeLen-afterLen)
-			}
+			inData = cleanData(inData)
 		}
 
 		var counts [256]int
