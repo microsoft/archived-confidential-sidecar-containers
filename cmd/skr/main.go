@@ -243,7 +243,16 @@ func main() {
 	logLevel := flag.String("loglevel", "debug", "Logging Level: trace, debug, info, warning, error, fatal, panic.")
 	logFile := flag.String("logfile", "", "Logging Target: An optional file name/path. Omit for console output.")
 	port := flag.String("port", "8080", "Port on which to listen")
-	hostname := flag.String("hostname", "localhost", "address on which to listen (dangerous)")
+
+	// WARNING!!!
+	// If the security policy does not control the areguments to this process then
+	// this hostname could be set to 0.0.0.0 (an external interface) rather than 127.0.0.1 (visible only
+	// witin the container group/pod)and so expose the attestation and key release outside of the secure uvm
+
+	// Leaving this line here, as a comment, to aid debugging.
+	// hostname := flag.String("hostname", "localhost", "address on which to listen (dangerous)")
+	localhost := "localhost"
+	hostname := &localhost
 
 	flag.Usage = usage
 
@@ -269,10 +278,11 @@ func main() {
 	logrus.Infof("Starting %s...", os.Args[0])
 
 	logrus.Infof("Args:")
-	logrus.Debugf("   Log Level: %s", *logLevel)
-	logrus.Debugf("   Log File:  %s", *logFile)
-	logrus.Debugf("   Port: %s", *port)
-	logrus.Debugf("   certificate cache:    %s", *azureInfoBase64string)
+	logrus.Debugf("   Log Level:     %s", *logLevel)
+	logrus.Debugf("   Log File:      %s", *logFile)
+	logrus.Debugf("   Port:          %s", *port)
+	logrus.Debugf("   Hostname:      %s", *hostname)
+	logrus.Debugf("   azure info:    %s", *azureInfoBase64string)
 
 	EncodedUvmInformation, err = common.GetUvmInfomation() // from the env.
 	if err != nil {
@@ -294,6 +304,8 @@ func main() {
 		}
 	}
 
+	// See above comment about hostname and risk of breaking confidentiality
 	url := *hostname + ":" + *port
+
 	setupServer(info.Identity).Run(url)
 }
