@@ -127,14 +127,6 @@ func postMAAAttest(c *gin.Context) {
 		return
 	}
 
-	// base64 decode the incoming encoded security policy
-	inittimeDataBytes, err := base64.StdEncoding.DecodeString(EncodedUvmInformation.EncodedSecurityPolicy)
-
-	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": errors.Wrap(err, "decoding policy from Base64 format failed").Error()})
-		return
-	}
-
 	// base64 decode the incoming runtime data
 	runtimeDataBytes, err := base64.StdEncoding.DecodeString(attestData.RuntimeData)
 	if err != nil {
@@ -152,7 +144,7 @@ func postMAAAttest(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
 
-	maaToken, err := attest.Attest(EncodedUvmInformation, maa, inittimeDataBytes, runtimeDataBytes)
+	maaToken, err := attest.Attest(maa, runtimeDataBytes, EncodedUvmInformation)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
@@ -199,7 +191,7 @@ func postKeyRelease(c *gin.Context) {
 	// it is not presented as fine-grained init-time claims in the MAA token, which would
 	// introduce larger MAA tokens that MHSM would accept
 	// TODO review now we have rego policy
-	keyBytes, err := skr.SecureKeyRelease(EncodedUvmInformation, Identity, skrKeyBlob, true)
+	keyBytes, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})

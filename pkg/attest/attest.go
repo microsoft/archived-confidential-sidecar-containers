@@ -4,6 +4,7 @@
 package attest
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
 	"os"
@@ -45,10 +46,7 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 // (E) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
 //
 //	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
-func Attest(uvmInformation common.UvmInformation, maa MAA, inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error) {
-
-	logrus.Debugf("   inittimeDataBytes:    %v", inittimeDataBytes)
-
+func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
 	// Fetch the attestation report
 
 	// check if sev device exists on the platform; if not fetch fake snp report
@@ -59,10 +57,24 @@ func Attest(uvmInformation common.UvmInformation, maa MAA, inittimeDataBytes []b
 		fetchRealSNPReport = true
 	}
 
+	inittimeDataBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedSecurityPolicy)
+	if err != nil {
+		return "", errors.Wrap(err, "decoding policy from Base64 format failed")
+	}
+	logrus.Debugf("   inittimeDataBytes:    %v", inittimeDataBytes)
+
 	SNPReportBytes, err := FetchSNPReport(fetchRealSNPReport, runtimeDataBytes, inittimeDataBytes)
 	if err != nil {
 		return "", errors.Wrapf(err, "fetching snp report failed")
 	}
+
+	/*
+		TODO:
+
+		At this point check that the TCB of the cert chain matches that reported so we fail early or
+		fetch fresh certs by other means.
+		 
+	*/
 
 	ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
 	logrus.Debugf("   SNPReportBytes:    %v", SNPReportBytes)
@@ -75,9 +87,14 @@ func Attest(uvmInformation common.UvmInformation, maa MAA, inittimeDataBytes []b
 	}
 
 	vcekCertChain := []byte(uvmInformation.CertChain)
+	uvmReferenceInfoBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedUvmReferenceInfo)
+
+	if err != nil {
+		return "", errors.Wrap(err, "decoding policy from Base64 format failed")
+	}
 
 	// Retrieve the MAA token required by the request's MAA endpoint
-	maaToken, err := maa.attest(uvmInformation.EncodedUvmReferenceInfo, SNPReportBytes, vcekCertChain, inittimeDataBytes, runtimeDataBytes)
+	maaToken, err := maa.attest(SNPReportBytes, vcekCertChain, inittimeDataBytes, runtimeDataBytes, uvmReferenceInfoBytes)
 	if err != nil || maaToken == "" {
 		return "", errors.Wrapf(err, "retrieving MAA token from MAA endpoint failed")
 	}

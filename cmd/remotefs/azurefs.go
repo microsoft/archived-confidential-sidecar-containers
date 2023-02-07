@@ -187,7 +187,7 @@ func releaseRemoteFilesystemKey(tempDir string, keyBlob skr.KeyBlob) (keyFilePat
 	// MHSM has limit on the request size. We do not pass the EncodedSecurityPolicy here so
 	// it is not presented as fine-grained init-time claims in the MAA token, which would
 	// introduce larger MAA tokens that MHSM would accept
-	keyBytes, err = skr.SecureKeyRelease(EncodedUvmInformation, Identity, keyBlob, true)
+	keyBytes, err = skr.SecureKeyRelease(Identity, keyBlob, EncodedUvmInformation)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to release key: %v", keyBlob)
 		return "", errors.Wrapf(err, "failed to release key")

@@ -30,9 +30,9 @@ type MAA struct {
 
 // MAA SNP Request Body class
 type maaReport struct {
-	Endorsements string `json:"Endorsements"`
 	SNPReport    string `json:"SnpReport"`
 	CertChain    string `json:"VcekCertChain"`
+	Endorsements string `json:"Endorsements"`
 }
 
 // MAA expects Endorsements to contain a json array (named "Uvm") of base64url encoded
@@ -59,15 +59,8 @@ type attestSNPRequestBody struct {
 // and the certificate chain, (ii) the  runtime data (base64 URL encoding of the public
 // wrapping key), (iii) the inittime data (base64 URL encoding of the security policy),
 // and (iv) a nonce
-func newAttestSNPRequestBody(encodedUvmReferenceInfo string, snpAttestationReport, vcekCertChain, policyBlob, keyBlob []byte) (*attestSNPRequestBody, error) {
+func newAttestSNPRequestBody(snpAttestationReport []byte, vcekCertChain []byte, policyBlob []byte, keyBlob []byte, uvmReferenceInfo []byte) (*attestSNPRequestBody, error) {
 	var request attestSNPRequestBody
-
-	ioutil.WriteFile("body.uvm_reference_info.base64", []byte(encodedUvmReferenceInfo), 0644)
-	// MAA wants the endorsements (aka the cosesign1 reference_info.cose) as base64Url not base64
-	uvmReferenceInfo, err := base64.StdEncoding.DecodeString(encodedUvmReferenceInfo)
-	if err != nil {
-		return nil, errors.Wrapf(err, "base64 decoding uvm reference info failed")
-	}
 
 	ioutil.WriteFile("body.uvm_reference_info.bin", uvmReferenceInfo, 0644)
 	base64urlEncodedUvmReferenceInfo := base64.URLEncoding.EncodeToString(uvmReferenceInfo)
@@ -89,9 +82,9 @@ func newAttestSNPRequestBody(encodedUvmReferenceInfo string, snpAttestationRepor
 	// the maa report is a bundle of the signed attestation report and
 	// the cert chain that endorses the signing key
 	maaReport := maaReport{
-		Endorsements: base64urlEncodedmaaEndorsement,
 		SNPReport:    base64.URLEncoding.EncodeToString(snpAttestationReport),
 		CertChain:    base64.URLEncoding.EncodeToString(vcekCertChain),
+		Endorsements: base64urlEncodedmaaEndorsement,
 	}
 
 	maaReportJSONBytes, err := json.Marshal(maaReport)
@@ -114,8 +107,8 @@ func newAttestSNPRequestBody(encodedUvmReferenceInfo string, snpAttestationRepor
 	logrus.Printf("\nrequest.RuntimeData\n\n%v\n\n", request.RuntimeData)
 
 	// the policy blob is passed as inittime data
-	// CANNOT pass the policy as it is rego, so not good json and only json
-	// is allowed, not binary.
+	// As of today we CANNOT pass the policy as it is rego, so not good json and only json
+	// is currently supported byt MAA, not binary.
 	if false && policyBlob != nil {
 		request.InittimeData = attestedData{
 			Data:     base64.URLEncoding.EncodeToString(policyBlob),
@@ -142,9 +135,9 @@ func newAttestSNPRequestBody(encodedUvmReferenceInfo string, snpAttestationRepor
 // claims and the key blob as runtime claims.
 //
 // Note, the using the leaf cert will be changed to a DID based scheme similar to fragments.
-func (maa MAA) attest(encodedUvmReferenceInfo string, SNPReportHexBytes []byte, vcekCertChain []byte, policyBlobBytes []byte, keyBlobBytes []byte) (MAAToken string, err error) {
+func (maa MAA) attest(SNPReportHexBytes []byte, vcekCertChain []byte, policyBlobBytes []byte, keyBlobBytes []byte, encodedUvmReferenceInfo []byte) (MAAToken string, err error) {
 	// Construct attestation request that contain the four attributes
-	request, err := newAttestSNPRequestBody(encodedUvmReferenceInfo, SNPReportHexBytes, vcekCertChain, policyBlobBytes, keyBlobBytes)
+	request, err := newAttestSNPRequestBody(SNPReportHexBytes, vcekCertChain, policyBlobBytes, keyBlobBytes, encodedUvmReferenceInfo)
 	if err != nil {
 		return "", errors.Wrapf(err, "creating new AttestSNPRequestBody failed")
 	}
