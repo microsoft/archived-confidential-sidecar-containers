@@ -10,7 +10,6 @@ require (
 	github.com/lestrrat-go/jwx v1.2.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
-	github.com/urfave/cli v1.22.12 // indirect
+	github.com/urfave/cli v1.22.12
 	golang.org/x/sys v0.0.0-20210915083310-ed5796bab164
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
