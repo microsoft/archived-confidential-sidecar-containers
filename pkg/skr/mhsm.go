@@ -170,9 +170,22 @@ func verifyX509CertChain(dnsName string, certChain []string, roots *x509.CertPoo
 }
 
 // MHSM class
+type RSAKey struct {
+	KTY    string   `json:"kty"`
+	KeyOps []string `json:"key_ops"`
+	D      string   `json:"d"`
+	DP     string   `json:"dp"`
+	DQ     string   `json:"dq"`
+	E      string   `json:"e"`
+	N      string   `json:"n"`
+	P      string   `json:"p"`
+	Q      string   `json:"q"`
+	QI     string   `json:"qi"`
+}
+
 type OctKey struct {
 	KTY     string   `json:"kty"`
-	KeyOps  []string `json:"key_ops"`
+	KeyOps  []string `json:"key_ops,omitempty"`
 	K       string   `json:"k"`
 	KeySize int      `json:"key_size"`
 }
@@ -185,10 +198,12 @@ type importKeyAttributes struct {
 type importKeyReleasePolicy struct {
 	ContentType string `json:"contentType"`
 	Data        string `json:"data"`
+	Immutable   bool   `json:"immutable,omitempty"`
 }
 
 type importKeyRequest struct {
 	Key           interface{}            `json:"key"`
+	Hsm           bool                   `json:"hsm"`
 	Attributes    importKeyAttributes    `json:"attributes"`
 	ReleasePolicy importKeyReleasePolicy `json:"release_policy"`
 }
@@ -283,13 +298,15 @@ func (mHSM MHSM) ImportPlaintextKey(key interface{}, releasePolicy ReleasePolicy
 
 	request := importKeyRequest{
 		Key: key,
+		Hsm: true,
 		Attributes: importKeyAttributes{
 			Exportable: true,
 		},
 		ReleasePolicy: importKeyReleasePolicy{
-			ContentType: "application/json; version=1.0",
+			ContentType: "application/json; charset=utf-8",
 			// M-HSM uses no-padding base64 url
-			Data: base64.RawURLEncoding.EncodeToString(releasePolicyBytes),
+			Data:      base64.RawURLEncoding.EncodeToString(releasePolicyBytes),
+			Immutable: false,
 		},
 	}
 
@@ -298,6 +315,7 @@ func (mHSM MHSM) ImportPlaintextKey(key interface{}, releasePolicy ReleasePolicy
 		return nil, errors.Wrapf(err, "marshalling import key request failed")
 	}
 
+	fmt.Println(string(importKeyJSON))
 	// Create HTTP request for managed HSM
 	uri := fmt.Sprintf(MHSMImportKeyRequestURITemplate, mHSM.Endpoint, keyName, mHSM.APIVersion)
 	httpResponse, err := common.HTTPPRequest("PUT", uri, importKeyJSON, mHSM.BearerToken)
