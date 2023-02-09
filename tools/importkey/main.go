@@ -5,6 +5,8 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
+	"github.com/lestrrat-go/jwx/jwk"
 )
 
 type importKeyConfig struct {
@@ -28,10 +31,12 @@ func main() {
 	var configFile string
 	var runInsideAzure bool
 	var keyHexString string
+	var keyRSAPEMFile string
 
 	// flags declaration using flag package
 	flag.StringVar(&configFile, "c", "", "Specify config file to process")
-	flag.StringVar(&keyHexString, "kh", "", "Specify key bytes in hexstring [optional]")
+	flag.StringVar(&keyHexString, "kh", "", "Specify oct key bytes in hexstring [optional]")
+	flag.StringVar(&keyRSAPEMFile, "kp", "", "Specify RSA key PEM file [optional]")
 	flag.BoolVar(&runInsideAzure, "a", false, "Run within Azure VM [optional]")
 	flag.Parse() // after declaring flags we need to call it
 
@@ -61,23 +66,6 @@ func main() {
 		importKeyCfg.Key.MHSM.BearerToken = token.AccessToken
 	}
 
-	// create a new random key
-	var secretKey []byte
-	var err error
-
-	if keyHexString == "" {
-		secretKey = make([]byte, 32)
-		rand.Read(secretKey)
-	} else {
-		secretKey, err = hex.DecodeString(keyHexString)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}
-
-	fmt.Println(secretKey)
-
 	// create release policy
 	var releasePolicy skr.ReleasePolicy
 
@@ -94,11 +82,75 @@ func main() {
 		)
 	}
 
-	key := skr.OctKey{
-		KTY:     "oct-HSM",
-		KeyOps:  []string{"encrypt", "decrypt"},
-		K:       base64.RawURLEncoding.EncodeToString(secretKey),
-		KeySize: len(secretKey) * 8,
+	var key interface{}
+
+	if importKeyCfg.Key.KTY == "RSA-HSM" {
+		var privateRSAKey *rsa.PrivateKey
+		var err error
+		if keyRSAPEMFile == "" {
+			privateRSAKey, err = rsa.GenerateKey(rand.Reader, 2048)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		} else {
+			privateRSAPEMBytes, err := ioutil.ReadFile(keyRSAPEMFile)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			privateRSAKey, err = x509.ParsePKCS1PrivateKey(privateRSAPEMBytes)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+
+		jwKey := jwk.NewRSAPrivateKey()
+		err = jwKey.FromRaw(privateRSAKey)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		//jwKey.Set("key_ops", "encrypt")
+		//		jwkJSONBytes, err := json.Marshal(jwKey)
+		//		if err != nil {
+		//			fmt.Println(err)
+		//			return
+		//		}
+
+		//		var jwkVol skr.RSAKey
+		//		json.Unmarshal(jwkJSONBytes, &jwkVol)
+
+		//		jwkVol.KTY = importKeyCfg.Key.KTY
+
+		key = jwKey
+	} else {
+		// create a new random key
+		var secretKey []byte
+		var err error
+
+		if keyHexString == "" {
+			secretKey = make([]byte, 32)
+			rand.Read(secretKey)
+		} else {
+			secretKey, err = hex.DecodeString(keyHexString)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+
+		fmt.Println(secretKey)
+
+		key = skr.OctKey{
+			KTY:     "oct-HSM",
+			KeyOps:  []string{"encrypt", "decrypt"},
+			K:       base64.RawURLEncoding.EncodeToString(secretKey),
+			KeySize: len(secretKey) * 8,
+		}
 	}
 
 	if mHSMResponse, err := importKeyCfg.Key.MHSM.ImportPlaintextKey(key, releasePolicy, importKeyCfg.Key.KID); err == nil {

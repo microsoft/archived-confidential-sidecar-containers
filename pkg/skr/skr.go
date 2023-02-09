@@ -6,6 +6,7 @@ package skr
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"strings"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
@@ -15,6 +16,7 @@ import (
 
 const (
 	ResourceIdManagedHSM = "https%3A%2F%2Fmanagedhsm.azure.net"
+	ResourceIdVault      = "https%3A%2F%2Fvault.azure.net"
 )
 
 // KeyBlob contains information about the managed hsm service that holds the secret
@@ -25,6 +27,8 @@ const (
 // authority's endpoint as the authority in the SKR.
 type KeyBlob struct {
 	KID       string     `json:"kid"`
+	KTY       string     `json:"kty,omitempty"`
+	KeyOps    []string   `json:"keyops,omitempty"`
 	Authority attest.MAA `json:"authority"`
 	MHSM      MHSM       `json:"mhsm"`
 }
@@ -72,7 +76,16 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 
 	// retrieve an Azure authentication token for authenticating with managed hsm
 	if SKRKeyBlob.MHSM.BearerToken == "" {
-		token, err := common.GetToken(ResourceIdManagedHSM, identity)
+
+		var ResourceIDTemplate string
+
+		if strings.Contains(SKRKeyBlob.MHSM.Endpoint, "managedhsm") {
+			ResourceIDTemplate = ResourceIdManagedHSM
+		} else {
+			ResourceIDTemplate = ResourceIdVault
+		}
+
+		token, err := common.GetToken(ResourceIDTemplate, identity)
 		if err != nil {
 			return nil, errors.Wrapf(err, "retrieving authentication token failed")
 		}
