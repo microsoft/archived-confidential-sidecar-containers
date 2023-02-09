@@ -6,7 +6,8 @@ package common
 import (
 	"encoding/base64"
 	"encoding/json"
-	"io/ioutil"
+
+	// "io/ioutil" needed when generating test data
 	"os"
 
 	"github.com/pkg/errors"
@@ -37,7 +38,7 @@ func THIMtoPEM(encodedHostCertsFromTHIM string) (string, error) {
 		return "", errors.Wrapf(err, "base64 decoding platform certs failed")
 	}
 
-	ioutil.WriteFile("uvm_host_amd_certificate.json", hostCertsFromTHIM, 0644)
+	// ioutil.WriteFile("uvm_host_amd_certificate.json", hostCertsFromTHIM, 0644)
 
 	var certsFromTHIM THIMCerts
 	err = json.Unmarshal(hostCertsFromTHIM, &certsFromTHIM)
@@ -46,8 +47,8 @@ func THIMtoPEM(encodedHostCertsFromTHIM string) (string, error) {
 	}
 
 	certsString := certsFromTHIM.VcekCert + certsFromTHIM.CertificateChain
-	
-	ioutil.WriteFile("uvm_host_amd_certificate.pem", []byte(certsString), 0644)
+
+	// ioutil.WriteFile("uvm_host_amd_certificate.pem", []byte(certsString), 0644)
 	logrus.Debugf("certsFromTHIM:\n\n%s\n\n", certsString)
 
 	return certsString, nil
@@ -56,7 +57,7 @@ func THIMtoPEM(encodedHostCertsFromTHIM string) (string, error) {
 func GetUvmInfomation() (UvmInformation, error) {
 	var encodedUvmInformation UvmInformation
 	encodedHostCertsFromTHIM := os.Getenv("UVM_HOST_AMD_CERTIFICATE")
-	ioutil.WriteFile("uvm_host_amd_certificate.base64", []byte(encodedHostCertsFromTHIM), 0644)
+	// ioutil.WriteFile("uvm_host_amd_certificate.base64", []byte(encodedHostCertsFromTHIM), 0644)
 
 	if encodedHostCertsFromTHIM != "" {
 		certChain, err := THIMtoPEM(encodedHostCertsFromTHIM)
@@ -66,9 +67,9 @@ func GetUvmInfomation() (UvmInformation, error) {
 		encodedUvmInformation.CertChain = certChain
 	}
 	encodedUvmInformation.EncodedSecurityPolicy = os.Getenv("UVM_SECURITY_POLICY")
-	ioutil.WriteFile("uvm_security_policy.base64", []byte(encodedUvmInformation.EncodedSecurityPolicy), 0644)
+	// ioutil.WriteFile("uvm_security_policy.base64", []byte(encodedUvmInformation.EncodedSecurityPolicy), 0644)
 	encodedUvmInformation.EncodedUvmReferenceInfo = os.Getenv("UVM_REFERENCE_INFO")
-	ioutil.WriteFile("uvm_reference_info.base64", []byte(encodedUvmInformation.EncodedUvmReferenceInfo), 0644)
+	// ioutil.WriteFile("uvm_reference_info.base64", []byte(encodedUvmInformation.EncodedUvmReferenceInfo), 0644)
 
 	return encodedUvmInformation, nil
 }

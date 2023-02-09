@@ -313,7 +313,7 @@ func Test_MAA(t *testing.T) {
 		t.Fatalf("failed to deserialize attestation report")
 	}
 
-	ValidMAAEndpoint := "sharedeus2.eus2.test.attest.azure.net" // TODO change to one already upgraded?
+	ValidMAAEndpoint := "sharedeus2.eus2.test.attest.azure.net" 
 	ValidTEEType := "SevSnpVM"
 	ValidMAAAPIVersion := "api-version=2020-10-01"
 

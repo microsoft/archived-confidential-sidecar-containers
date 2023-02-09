@@ -6,7 +6,8 @@ package attest
 import (
 	"encoding/base64"
 	"encoding/hex"
-	"io/ioutil"
+	
+	// "io/ioutil" needed when generating test data
 	"os"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
@@ -76,7 +77,7 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 		 
 	*/
 
-	ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
+	// ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
 	logrus.Debugf("   SNPReportBytes:    %v", SNPReportBytes)
 
 	// Retrieve the certificate chain using the chip identifier and platform version

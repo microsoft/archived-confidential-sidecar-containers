@@ -187,10 +187,6 @@ func postKeyRelease(c *gin.Context) {
 		MHSM:      mhsm,
 	}
 
-	// MHSM has limit on the request size. We ask not pass the EncodedSecurityPolicy here so
-	// it is not presented as fine-grained init-time claims in the MAA token, which would
-	// introduce larger MAA tokens that MHSM would accept
-	// TODO review now we have rego policy
 	keyBytes, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)
 
 	if err != nil {
