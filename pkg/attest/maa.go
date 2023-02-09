@@ -96,15 +96,11 @@ func newAttestSNPRequestBody(snpAttestationReport []byte, vcekCertChain []byte, 
 	request.Report = base64.URLEncoding.EncodeToString(maaReportJSONBytes)
 	ioutil.WriteFile("body.report.base64url", []byte(request.Report), 0644)
 
-	logrus.Printf("\nrequest.Report\n\n%s\n\n", request.Report)
-
 	// the key blob is passed as runtime data
 	request.RuntimeData = attestedData{
 		Data:     base64.URLEncoding.EncodeToString(keyBlob),
 		DataType: "JSON", // Binary not allowed, must be JSON? - see https://learn.microsoft.com/en-us/rest/api/attestation/attestation/attest-sev-snp-vm?tabs=HTTP#datatype
 	}
-
-	logrus.Printf("\nrequest.RuntimeData\n\n%v\n\n", request.RuntimeData)
 
 	// the policy blob is passed as inittime data
 	// As of today we CANNOT pass the policy as it is rego, so not good json and only json
@@ -115,7 +111,6 @@ func newAttestSNPRequestBody(snpAttestationReport []byte, vcekCertChain []byte, 
 			DataType: "binary", // rego really
 		}
 	}
-	logrus.Printf("\nrequest.InittimeData\n\n%v\n\n", request.InittimeData)
 
 	rand.Seed(time.Now().UnixNano())
 	request.Nonce = rand.Uint64()
