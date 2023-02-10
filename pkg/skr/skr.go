@@ -28,6 +28,7 @@ const (
 type KeyBlob struct {
 	KID       string     `json:"kid"`
 	KTY       string     `json:"kty,omitempty"`
+	Salt      string     `json:"salt,omitempty`
 	KeyOps    []string   `json:"keyops,omitempty"`
 	Authority attest.MAA `json:"authority"`
 	MHSM      MHSM       `json:"mhsm"`

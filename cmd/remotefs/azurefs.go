@@ -7,10 +7,14 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -20,9 +24,12 @@ import (
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+
+	"golang.org/x/crypto/hkdf"
 )
 
 // Test dependencies
@@ -182,20 +189,62 @@ func releaseRemoteFilesystemKey(tempDir string, keyBlob skr.KeyBlob) (keyFilePat
 
 	// 2) release key identified by keyBlob using encoded security policy
 
-	keyBytes := make([]byte, 64)
+	keyBytes := make([]byte, 32)
 
 	// MHSM has limit on the request size. We do not pass the EncodedSecurityPolicy here so
 	// it is not presented as fine-grained init-time claims in the MAA token, which would
 	// introduce larger MAA tokens that MHSM would accept
+
 	keyBytes, err = skr.SecureKeyRelease(Identity, keyBlob, EncodedUvmInformation)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to release key: %v", keyBlob)
 		return "", errors.Wrapf(err, "failed to release key")
 	}
 
+	var octKeyBytes []byte
+	if kty == "oct" {
+		octKeyBytes = keyBytes
+	} else if kty == "RSA-HSM" {
+		key, err := x509.ParsePKCS8PrivateKey(keyBytes)
+		if err != nil {
+			logrus.WithError(err).Debugf("failed to parse RSA key")
+			return "", errors.Wrapf(err, "failed to parse RSA key")
+		}
+
+		var privateRSAKey *rsa.PrivateKey = key.(*rsa.PrivateKey)
+
+		jwKey := jwk.NewRSAPrivateKey()
+		err = jwKey.FromRaw(privateRSAKey)
+		if err != nil {
+			logrus.WithError(err).Debugf("failed to encode RSA key as JWK")
+			return "", errors.Wrapf(err, "failed to encode RSA key as JWK")
+		}
+
+		// use sha256 as hashing function for HKDF
+		hash := sha256.New
+
+		// decode public salt hexstring
+		salt, err := hex.DecodeString(keyBlob.Salt)
+		if err != nil {
+			logrus.WithError(err).Debugf("failed to decode salt hexstring")
+			return "", errors.Wrapf(err, "failed to decode salt hexstring")
+		}
+
+		hkdf := hkdf.New(hash, jwKey.D(), salt, []byte("Symmetric Encryption Key"))
+
+		// derive key
+		octKeyBytes = make([]byte, 32)
+		if _, err := io.ReadFull(hkdf, octKeyBytes); err != nil {
+			logrus.WithError(err).Debugf("failed to derive oct key")
+			return "", errors.Wrapf(err, "failed to derive oct key")
+		}
+
+		logrus.Debugf("Symmetric key %s (salt: %s label: Symmetric Encryption Key)\n", hex.EncodeToString(octKeyBytes), keyBlob.Salt)
+	}
+
 	// 3) dm-crypt expects a key file, so create a key file using the key released in
 	//    previous step
-	err = ioutilWriteFile(keyFilePath, keyBytes, 0644)
+	err = ioutilWriteFile(keyFilePath, octKeyBytes, 0644)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to delete keyfile: %s", keyFilePath)
 		return "", errors.Wrapf(err, "failed to write keyfile")
