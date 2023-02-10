@@ -54,6 +54,26 @@ type OctKey struct {
 	KeySize int      `json:"key_size"`
 }
 
+type RSAKey struct {
+	KTY    string   `json:"kty"`
+	KeyOps []string `json:"key_ops"`
+	D      string   `json:"d"`
+	DP     string   `json:"dp"`
+	DQ     string   `json:"dq"`
+	E      string   `json:"e"`
+	N      string   `json:"n"`
+	P      string   `json:"p"`
+	Q      string   `json:"q"`
+	QI     string   `json:"qi"`
+}
+
+type OctKey struct {
+	KTY     string   `json:"kty"`
+	KeyOps  []string `json:"key_ops,omitempty"`
+	K       string   `json:"k"`
+	KeySize int      `json:"key_size"`
+}
+
 func main() {
 	// variables declaration
 	var configFile string
@@ -277,6 +297,9 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+	} else {
+		fmt.Println("Key not supported")
+		return
 	}
 
 	if mHSMResponse, err := importKeyCfg.Key.MHSM.ImportPlaintextKey(key, releasePolicy, importKeyCfg.Key.KID); err == nil {

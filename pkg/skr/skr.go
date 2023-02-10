@@ -6,10 +6,6 @@ package skr
 import (
 	"crypto/rand"
 	"crypto/rsa"
-<<<<<<< HEAD
-=======
-	"encoding/base64"
->>>>>>> Initial support for importing and releasing RSA keys from key vault
 	"strings"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
