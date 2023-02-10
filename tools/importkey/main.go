@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -53,13 +54,15 @@ type OctKey struct {
 func main() {
 	// variables declaration
 	var configFile string
-	var runInsideAzure bool
 	var keyHexString string
+	var runInsideAzure bool
+	var outputKeyfile bool
 
 	// flags declaration using flag package
 	flag.StringVar(&configFile, "c", "", "Specify config file to process")
 	flag.StringVar(&keyHexString, "kh", "", "Specify oct key bytes in hexstring [optional]")
 	flag.BoolVar(&runInsideAzure, "a", false, "Run within Azure VM [optional]")
+	flag.BoolVar(&outputKeyfile, "out", false, "Output oct key binary file")
 	flag.Parse() // after declaring flags we need to call it
 
 	flag.Parse()
@@ -112,6 +115,7 @@ func main() {
 	}
 
 	var key interface{}
+	var octKey []byte
 
 	if importKeyCfg.Key.KTY == "RSA-HSM" {
 		privateRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -129,32 +133,33 @@ func main() {
 			return
 		}
 
-		// Underlying hash function for HMAC.
+		// use sha256 as hashing function for HKDF
 		hash := sha256.New
 
 		// public salt and label
+		label := []byte("Symmetric Encryption Key")
 		salt := make([]byte, hash().Size())
 		if _, err := rand.Read(salt); err != nil {
 			fmt.Println(err)
 			return
 		}
-		label := []byte("Symmetric Encryption Key")
 
-		// Generate three 128-bit derived keys.
 		hkdf := hkdf.New(hash, jwKey.D(), salt, label)
 
-		octKey := make([]byte, 32)
+		// derive key
+		octKey = make([]byte, 32)
 		if _, err := io.ReadFull(hkdf, octKey); err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		fmt.Printf("Symmetric key %s (salt: %s label: %s)", hex.EncodeToString(octKey), hex.EncodeToString(salt), label)
+		fmt.Printf("Symmetric key %s (salt: %s label: %s)\n", hex.EncodeToString(octKey), hex.EncodeToString(salt), label)
+
 		jwKey.Set("key_ops", "encrypt")
 		key = jwKey
 	} else if importKeyCfg.Key.KTY == "" {
 		// if not specified, default is to generate an OCT key
-		var octKey []byte
+
 		var err error
 
 		if keyHexString == "" {
@@ -168,7 +173,7 @@ func main() {
 			}
 		}
 
-		fmt.Printf("Symmetric key %s", hex.EncodeToString(octKey))
+		fmt.Printf("Symmetric key %s\n", hex.EncodeToString(octKey))
 
 		key = OctKey{
 			KTY:     "oct-HSM",
@@ -179,6 +184,20 @@ func main() {
 	} else {
 		fmt.Println("Key not supported")
 		return
+	}
+
+	if outputKeyfile {
+		keyfile, err := os.Create("keyfile.bin")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		err = binary.Write(keyfile, binary.LittleEndian, octKey)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 
 	if mHSMResponse, err := importKeyCfg.Key.MHSM.ImportPlaintextKey(key, releasePolicy, importKeyCfg.Key.KID); err == nil {
