@@ -56,13 +56,13 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 	// generate rsa key pair
 	privateWrappingKey, err := rsa.GenerateKey(rand.Reader, RSASize)
 	if err != nil {
-		return nil, errors.Wrapf(err, "rsa key pair generation failed")
+		return nil, "", errors.Wrapf(err, "rsa key pair generation failed")
 	}
 
 	// construct the key blob
 	jwkSetBytes, err := common.GenerateJWKSet(privateWrappingKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "generating key blob failed")
+		return nil, "", errors.Wrapf(err, "generating key blob failed")
 	}
 
 	// Attest
@@ -71,14 +71,14 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 		return nil, errors.Wrapf(err, "attestation failed")
 	}
 
-	// 2. Interact with Azure Key Vault managed HSM. The REST API of AKV managed HSM
-	// requires authentication using an Azure authentication token.
+	// 2. Interact with Azure Key Vault. The REST API of AKV requires
+	//     authentication using an Azure authentication token.
 
-	// retrieve an Azure authentication token for authenticating with managed hsm
+	// retrieve an Azure authentication token for authenticating with AKV
 	if SKRKeyBlob.MHSM.BearerToken == "" {
-
 		var ResourceIDTemplate string
-
+		// If endpoint contains managedhsm, request a token for managedhsm
+		// resource; otherwise for a vault
 		if strings.Contains(SKRKeyBlob.MHSM.Endpoint, "managedhsm") {
 			ResourceIDTemplate = ResourceIdManagedHSM
 		} else {
@@ -87,7 +87,7 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 
 		token, err := common.GetToken(ResourceIDTemplate, identity)
 		if err != nil {
-			return nil, errors.Wrapf(err, "retrieving authentication token failed")
+			return nil, "", errors.Wrapf(err, "retrieving authentication token failed")
 		}
 
 		// set the azure authentication token to the MHSM instance
@@ -98,11 +98,13 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 	// use the MAA token obtained from the mhsm's authority to retrieve the key identified by kid. The ReleaseKey
 	// operation requires the private wrapping key to unwrap the encrypted key material released from
 	// the managed HSM.
-	key, err := SKRKeyBlob.MHSM.ReleaseKey(maaToken, SKRKeyBlob.KID, privateWrappingKey)
-	logrus.Debugf("Releasing key: %v %s", key, err)
+
+	key, kty, err := SKRKeyBlob.MHSM.ReleaseKey(maaToken, SKRKeyBlob.KID, privateWrappingKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "releasing the key %s failed", SKRKeyBlob.KID)
+		return nil, "", errors.Wrapf(err, "releasing the key %s failed", SKRKeyBlob.KID)
 	}
 
-	return key, nil
+	logrus.Debugf("Key Type: %s Key %v", kty, key)
+
+	return key, kty, nil
 }
