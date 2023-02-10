@@ -297,9 +297,6 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-	} else {
-		fmt.Println("Key not supported")
-		return
 	}
 
 	if mHSMResponse, err := importKeyCfg.Key.MHSM.ImportPlaintextKey(key, releasePolicy, importKeyCfg.Key.KID); err == nil {
