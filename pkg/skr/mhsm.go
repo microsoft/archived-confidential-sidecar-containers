@@ -170,25 +170,6 @@ func verifyX509CertChain(dnsName string, certChain []string, roots *x509.CertPoo
 }
 
 // MHSM class
-type RSAKey struct {
-	KTY    string   `json:"kty"`
-	KeyOps []string `json:"key_ops"`
-	D      string   `json:"d"`
-	DP     string   `json:"dp"`
-	DQ     string   `json:"dq"`
-	E      string   `json:"e"`
-	N      string   `json:"n"`
-	P      string   `json:"p"`
-	Q      string   `json:"q"`
-	QI     string   `json:"qi"`
-}
-
-type OctKey struct {
-	KTY     string   `json:"kty"`
-	KeyOps  []string `json:"key_ops,omitempty"`
-	K       string   `json:"k"`
-	KeySize int      `json:"key_size"`
-}
 
 // ImportKey SKR interface
 type importKeyAttributes struct {
@@ -287,7 +268,7 @@ type ReleaseKeyReleasePolicy struct {
 	Data        string `json:"data"`
 }
 
-// ImportPlaintextKey imports a plaintext key to a keyvault. The key is associated
+// ImportPlaintextKey imports a plaintext key to a HSM-backed keyvault. The key is associated
 // with a release policy
 func (mHSM MHSM) ImportPlaintextKey(key interface{}, releasePolicy ReleasePolicy, keyName string) (mHSMResponse *ImportKeyResponse, err error) {
 	// create import key request
@@ -304,7 +285,7 @@ func (mHSM MHSM) ImportPlaintextKey(key interface{}, releasePolicy ReleasePolicy
 		},
 		ReleasePolicy: importKeyReleasePolicy{
 			ContentType: "application/json; charset=utf-8",
-			// M-HSM uses no-padding base64 url
+			// AKV uses no-padding base64 url
 			Data:      base64.RawURLEncoding.EncodeToString(releasePolicyBytes),
 			Immutable: false,
 		},
@@ -344,7 +325,7 @@ func (mHSM MHSM) ImportPlaintextKey(key interface{}, releasePolicy ReleasePolicy
 // the release policy. ReleaseKey uses the private key to locally unwrap the released secrets.
 // The private key is kept within the utility VM and hence is isolated with hardware-based
 // guarantees.
-func (mHSM MHSM) ReleaseKey(maaTokenBase64 string, kid string, privateWrappingKey *rsa.PrivateKey) (_ []byte, err error) {
+func (mHSM MHSM) ReleaseKey(maaTokenBase64 string, kid string, privateWrappingKey *rsa.PrivateKey) (_ []byte, _ string, err error) {
 	// Construct release key request to managed HSM
 	request := releaseKeyRequest{
 		Target: maaTokenBase64,
@@ -353,25 +334,25 @@ func (mHSM MHSM) ReleaseKey(maaTokenBase64 string, kid string, privateWrappingKe
 	// bearer token
 	releaseKeyJSONData, err := json.Marshal(request)
 	if err != nil {
-		return nil, errors.Wrapf(err, "marshalling release key request failed")
+		return nil, "", errors.Wrapf(err, "marshalling release key request failed")
 	}
 
 	uri := fmt.Sprintf(MHSMReleaseKeyRequestURITemplate, mHSM.Endpoint, kid, mHSM.APIVersion)
 
 	httpResponse, err := common.HTTPPRequest("POST", uri, releaseKeyJSONData, mHSM.BearerToken)
 	if err != nil {
-		return nil, errors.Wrapf(err, "mhsm post request failed")
+		return nil, "", errors.Wrapf(err, "mhsm post request failed")
 	}
 
 	httpResponseBodyBytes, err := common.HTTPResponseBody(httpResponse)
 	if err != nil {
-		return nil, errors.Wrapf(err, "pulling mhsm response body failed")
+		return nil, "", errors.Wrapf(err, "pulling mhsm response body failed")
 	}
 
 	// Extract the value field found in the response
 	mHSMResponse := new(releaseKeyResponse)
 	if err = json.Unmarshal(httpResponseBodyBytes, mHSMResponse); err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling http response to releasekey response failed")
+		return nil, "", errors.Wrapf(err, "unmarshalling http response to releasekey response failed")
 	}
 
 	return _releaseKey(mHSM, mHSMResponse.Value, privateWrappingKey)
@@ -386,32 +367,32 @@ func (mHSM MHSM) ReleaseKey(maaTokenBase64 string, kid string, privateWrappingKe
 // (5) Verify the certificate chain for the signer
 // (6) Ensure that the root of the certificate chain is trusted
 // (7) Unwrap the wrapped key from the payload
-func _releaseKey(mHSM MHSM, mHSMJWS string, privateWrappingKey *rsa.PrivateKey) (key []byte, err error) {
+func _releaseKey(mHSM MHSM, mHSMJWS string, privateWrappingKey *rsa.PrivateKey) (key []byte, kty string, err error) {
 	// (1) Verify that it is a well formed JWS object
 	if err := verifyJWSToken(mHSMJWS); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// (2) Use the thumbprint or first entry in the chain to obtain the public key of the signer
 	var header jwsHeader
 	if err := header.extractJWSTokenHeader(mHSMJWS); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	leafCertificate, err := parseX509Certificate(header.X5C[0])
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing certificate X5C[0] failed")
+		return nil, "", errors.Wrapf(err, "parsing certificate X5C[0] failed")
 	}
 
 	leafKey, ok := leafCertificate.PublicKey.(*rsa.PublicKey)
 	if !ok {
-		return nil, errors.Wrapf(err, "could not cast interface to rsa.PublicKey")
+		return nil, "", errors.Wrapf(err, "could not cast interface to rsa.PublicKey")
 	}
 
 	// (3) Signature validation of the JWS token
 	payloadBytes, err := validateJWSToken(mHSMJWS, leafKey, jwa.SignatureAlgorithm(header.Alg))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// (4) (5) and (6) Verify the leaf certificate using a cert chain that is rooted to the the system's cert pool
@@ -425,48 +406,48 @@ func _releaseKey(mHSM MHSM, mHSMJWS string, privateWrappingKey *rsa.PrivateKey) 
 
 		rootCertificate, err := parseX509Certificate(header.X5C[len(header.X5C)-1])
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse root certificate X5C[%d]", len(header.X5C)-1)
+			return nil, "", errors.Wrapf(err, "failed to parse root certificate X5C[%d]", len(header.X5C)-1)
 		}
 
 		roots.AddCert(rootCertificate)
 	} else {
 		roots, err = x509.SystemCertPool()
 		if err != nil {
-			return nil, errors.Wrapf(err, "could not generate a system cert pool")
+			return nil, "", errors.Wrapf(err, "could not generate a system cert pool")
 		}
 	}
 
 	if err := verifyX509CertChain(mHSM.Endpoint, header.X5C, roots); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// (7) Unwrap the wrapped key from the signed payload
 	var payloadJSON releaseKeyResponseJWSPayload
 	if err := json.Unmarshal(payloadBytes, &payloadJSON); err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling jws response payload failed")
+		return nil, "", errors.Wrapf(err, "unmarshalling jws response payload failed")
 	}
 
 	// decode KeyHSM no-padding base64 url representation and retrieve the Ciphertext field
 	keyHSMBytes, err := base64.RawURLEncoding.DecodeString(payloadJSON.Response.Key.Key.KeyHSM)
 	if err != nil {
-		return nil, errors.Wrapf(err, "decoding keyHSM failed")
+		return nil, "", errors.Wrapf(err, "decoding keyHSM failed")
 	}
 
 	var keyHSMJson releaseKeyKeyHSM
 	if err := json.Unmarshal(keyHSMBytes, &keyHSMJson); err != nil {
-		return nil, errors.Wrapf(err, "unmarshalling keyHSM failed")
+		return nil, "", errors.Wrapf(err, "unmarshalling keyHSM failed")
 	}
 
 	// decode Ciphertext no-padding base64 url representation and wnwrap the key
 	ciphertext, err := base64.RawURLEncoding.DecodeString(keyHSMJson.Ciphertext)
 	if err != nil {
-		return nil, errors.Wrapf(err, "decoding keyHSM's ciphertext failed")
+		return nil, "", errors.Wrapf(err, "decoding keyHSM's ciphertext failed")
 	}
 
 	key, err = rsaAESKeyUnwrap(payloadJSON.Request.Enc, ciphertext, privateWrappingKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "aes key unwrap failed")
+		return nil, "", errors.Wrapf(err, "aes key unwrap failed")
 	}
 
-	return key, nil
+	return key, payloadJSON.Response.Key.Key.KTY, nil
 }
