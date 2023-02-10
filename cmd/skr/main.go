@@ -4,6 +4,8 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +18,7 @@ import (
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -200,14 +203,40 @@ func postKeyRelease(c *gin.Context) {
 	// MHSM has limit on the request size. We do not pass the EncodedSecurityPolicy here so
 	// it is not presented as fine-grained init-time claims in the MAA token, which would
 	// introduce larger MAA tokens that MHSM would accept
-	keyBytes, err := skr.SecureKeyRelease("", ServerCertCache, Identity, skrKeyBlob)
+	keyBytes, kty, err := skr.SecureKeyRelease("", ServerCertCache, Identity, skrKeyBlob)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"key": hex.EncodeToString(keyBytes)})
+	if kty == "oct" {
+		c.JSON(http.StatusOK, gin.H{"key": hex.EncodeToString(keyBytes)})
+	} else if kty == "RSA-HSM" {
+
+		key, err := x509.ParsePKCS8PrivateKey(keyBytes)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+
+		var privateRSAKey *rsa.PrivateKey = key.(*rsa.PrivateKey)
+
+		jwKey := jwk.NewRSAPrivateKey()
+		err = jwKey.FromRaw(privateRSAKey)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+
+		jwkJSONBytes, err := json.Marshal(jwKey)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
+	}
 }
 
 func setupServer(certCache attest.CertCache, identity common.Identity) *gin.Engine {
