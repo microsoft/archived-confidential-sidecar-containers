@@ -85,10 +85,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	// retrieve a token from managed hsm. this requires to be run within a VM that has been assigned a managed identity associated with the managed hsm
+	// retrieve a token from AKV. this requires to be run within a VM that has been assigned a managed identity associated with the AKV resource
 	if runInsideAzure {
 		var ResourceIDTemplate string
-		if strings.Contains(importKeyCfg.Key.MHSM.Endpoint, "managedhsm") {
+		if strings.Contains(importKeyCfg.Key.AKV.Endpoint, "managedhsm") {
 			ResourceIDTemplate = "https%3A%2F%2Fmanagedhsm.azure.net"
 		} else {
 			ResourceIDTemplate = "https%3A%2F%2Fvault.azure.net"
@@ -100,7 +100,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		importKeyCfg.Key.MHSM.BearerToken = token.AccessToken
+		importKeyCfg.Key.AKV.BearerToken = token.AccessToken
 	}
 
 	// create release policy
@@ -109,7 +109,7 @@ func main() {
 	releasePolicy.Version = "0.2"
 
 	for _, allOfStatement := range importKeyCfg.Claims {
-		// authority denotes authorized MAA endpoint that can present MAA tokens to the AKV MHSM
+		// authority denotes authorized MAA endpoint that can present MAA tokens to the AKV
 		releasePolicy.AnyOf = append(
 			releasePolicy.AnyOf,
 			skr.OuterClaimStruct{
@@ -279,8 +279,8 @@ func main() {
 		}
 	}
 
-	if mHSMResponse, err := importKeyCfg.Key.MHSM.ImportPlaintextKey(key, releasePolicy, importKeyCfg.Key.KID); err == nil {
-		fmt.Println(mHSMResponse.Key.KID)
+	if AKVResponse, err := importKeyCfg.Key.AKV.ImportPlaintextKey(key, releasePolicy, importKeyCfg.Key.KID); err == nil {
+		fmt.Println(AKVResponse.Key.KID)
 		releasePolicyJSON, err := json.Marshal(releasePolicy)
 		if err != nil {
 			fmt.Println("marshalling releasy policy failed")
