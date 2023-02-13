@@ -1,13 +1,13 @@
 {
     "key":{
-        "kid": "<key-vault-mhsm-key-identifier>",
+        "kid": "<key-vault-key-identifier>",
         "authority": {
-            "endpoint": "<authority-of-key-imported-to-key-vault-mhsm>"
+            "endpoint": "<authority-of-key-imported-to-akv>"
         },
-        "mhsm": {
-            "endpoint": "key-vault-mhsm-endpoint",  
+        "akv": {
+            "endpoint": "key-vault-akv-endpoint",  
             "api_version": "api-version=7.3-preview",
-            "bearer_token": "<aad-token-with-permissions-to-akv-mhsm>"
+            "bearer_token": "<aad-token-with-permissions-to-akv>"
         }
     },
     "claims":[        

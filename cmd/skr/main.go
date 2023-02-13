@@ -30,7 +30,7 @@ var (
 
 type AzureInformation struct {
 	// Identifier of the managed identity to be used
-	// for authenticating with AKV MHSM. This is optional and
+	// for authenticating with AKV. This is optional and
 	// useful only when the container group has been assigned
 	// more than one managed identity.
 	Identity common.Identity `json:"identity,omitempty"`
@@ -53,12 +53,12 @@ type RawAttestData struct {
 type KeyReleaseData struct {
 	// MAA endpoint which acts as authority to the key that needs to be released
 	MAAEndpoint string `json:"maa_endpoint" binding:"required"`
-	// MHSM endpoint from which the key is released
-	MHSMEndpoint string `json:"mhsm_endpoint" binding:"required"`
+	// AKV endpoint from which the key is released
+	AKVEndpoint string `json:"akv_endpoint" binding:"required"`
 	// key identifier for key to be released
 	KID string `json:"kid" binding:"required"`
 	// In the absence of managed identity assignment to the container group
-	// an AAD token issued for authentication with MHSM resource may be included
+	// an AAD token issued for authentication with AKV resource may be included
 	// in the request to release the key.
 	AccessToken string `json:"access_token"`
 }
@@ -154,13 +154,13 @@ func postMAAAttest(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": maaToken})
 }
 
-// postKeyRelease retrieves a secret previously imported to Azure Key Vault MHSM
+// postKeyRelease retrieves a secret previously imported to Azure Key Vault
 //
-//   - MHSMEndpoint is the uri to the MHSM from which the secret will be retrieved
+//   - AKVEndpoint is the uri to the key vault from which the secret will be retrieved
 //   - MAAEndpoint is the uri to the Microsoft Azure Attestation service endpoint which
 //     will author and sign the attestation claims presented to the MSHM during secure
 //     key release operation. It needs to be the same as the authority defined in the
-//     SKR policy when the secret was imported to the MHSM.
+//     SKR policy when the secret was imported to the AKV.
 //   - KID is the key identifier of the secret to be retrieved.
 func postKeyRelease(c *gin.Context) {
 	var newKeyReleaseData KeyReleaseData
@@ -171,8 +171,8 @@ func postKeyRelease(c *gin.Context) {
 		return
 	}
 
-	mhsm := skr.MHSM{
-		Endpoint:    newKeyReleaseData.MHSMEndpoint,
+	akv := skr.AKV{
+		Endpoint:    newKeyReleaseData.AKVEndpoint,
 		APIVersion:  "api-version=7.3-preview",
 		BearerToken: newKeyReleaseData.AccessToken,
 	}
@@ -186,7 +186,7 @@ func postKeyRelease(c *gin.Context) {
 	skrKeyBlob := skr.KeyBlob{
 		KID:       newKeyReleaseData.KID,
 		Authority: maa,
-		MHSM:      mhsm,
+		AKV:       akv,
 	}
 
 	keyBytes, kty, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)

@@ -73,7 +73,7 @@ The `key/release` POST method expects a JSON of the following format:
 ```json
 {	
     "maa_endpoint": "<maa endpoint>",
-    "mhsm_endpoint": "<mhsm endpoint>",
+    "akv_endpoint": "<akv endpoint>",
     "kid": "<key identifier>",
     "access_token": "optional aad token if the command will run in a resource without proper managed identity assigned"
 }
