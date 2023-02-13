@@ -73,7 +73,7 @@ In order to get this to work, the tool does the following for each filesystem
   until the expected file is available. This has a timeout of 10 seconds.
 
 - The keyfile is obtained from either SKR or the hardcoded key in the tool. If
-  the key material released using SKR is an RSA-HSM, the tool uses the key 
+  the key material released using SKR is an `RSA-HSM`, the tool uses the key 
   derivation information to derive an octet key.
 
 - The encrypted file and the key file are passed to cryptsetup so that the
