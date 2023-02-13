@@ -53,7 +53,7 @@ type KeyBlob struct {
 //
 // The method requires serveral attributes including the security policy, the keyblob that contains
 // information about the mhsm, authority and the key to be released.
-func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ []byte, err error) {
+func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ []byte, _ string, err error) {
 
 	logrus.Debugf("Releasing key blob: %v", SKRKeyBlob)
 
@@ -79,7 +79,7 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 	// Attest
 	maaToken, err = attest.Attest(SKRKeyBlob.Authority, jwkSetBytes, uvmInformation)
 	if err != nil {
-		return nil, errors.Wrapf(err, "attestation failed")
+		return nil, "", errors.Wrapf(err, "attestation failed")
 	}
 
 	// 2. Interact with Azure Key Vault. The REST API of AKV requires

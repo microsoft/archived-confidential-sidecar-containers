@@ -15,7 +15,7 @@
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2022-04-01-preview",
       "name": "[parameters('containerGroupName')]",
-      "location": "westeurope",
+      "location": "[resourceGroup().location]",
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
