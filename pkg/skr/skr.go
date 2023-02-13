@@ -19,17 +19,27 @@ const (
 	ResourceIdVault      = "https%3A%2F%2Fvault.azure.net"
 )
 
+// KeyDerivationBlob contains information about the key that needs to be derived
+// from a secret that has been released
+//
+// Safe use of this is to ensure that the secret has enough entropy. Examples
+// include RSA private keys.
+type KeyDerivationBlob struct {
+	Salt  string `json:"salt,omitempty`
+	Label string `json:"label,omitemtpy`
+}
+
 // KeyBlob contains information about the managed hsm service that holds the secret
 // to be released.
 //
 // Authority lists the valid MAA that can issue tokens that the managed hsm service
 // will accept. The key imported to this managed hsm needs to have included the
 // authority's endpoint as the authority in the SKR.
+
 type KeyBlob struct {
 	KID       string     `json:"kid"`
 	KTY       string     `json:"kty,omitempty"`
-	Salt      string     `json:"salt,omitempty`
-	KeyOps    []string   `json:"keyops,omitempty"`
+	KeyOps    []string   `json:"key_ops,omitempty"`
 	Authority attest.MAA `json:"authority"`
 	MHSM      MHSM       `json:"mhsm"`
 }

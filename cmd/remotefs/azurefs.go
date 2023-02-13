@@ -175,7 +175,7 @@ func rawRemoteFilesystemKey(tempDir string, rawKeyHexString string) (keyFilePath
 // 2) Perform secure key release
 //
 // 3) Prepare the key file path using the released key
-func releaseRemoteFilesystemKey(tempDir string, keyBlob skr.KeyBlob) (keyFilePath string, err error) {
+func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivationBlob, keyBlob skr.KeyBlob) (keyFilePath string, err error) {
 
 	keyFilePath = filepath.Join(tempDir, "keyfile")
 
@@ -223,14 +223,22 @@ func releaseRemoteFilesystemKey(tempDir string, keyBlob skr.KeyBlob) (keyFilePat
 		// use sha256 as hashing function for HKDF
 		hash := sha256.New
 
+		// public salt and label
+		var labelString string
+		if keyDerivationBlob.Label != "" {
+			labelString = keyDerivationBlob.Label
+		} else {
+			labelString = "Symmetric Encryption Key"
+		}
+
 		// decode public salt hexstring
-		salt, err := hex.DecodeString(keyBlob.Salt)
+		salt, err := hex.DecodeString(keyDerivationBlob.Salt)
 		if err != nil {
 			logrus.WithError(err).Debugf("failed to decode salt hexstring")
 			return "", errors.Wrapf(err, "failed to decode salt hexstring")
 		}
 
-		hkdf := hkdf.New(hash, jwKey.D(), salt, []byte("Symmetric Encryption Key"))
+		hkdf := hkdf.New(hash, jwKey.D(), salt, []byte(labelString))
 
 		// derive key
 		octKeyBytes = make([]byte, 32)
@@ -239,7 +247,7 @@ func releaseRemoteFilesystemKey(tempDir string, keyBlob skr.KeyBlob) (keyFilePat
 			return "", errors.Wrapf(err, "failed to derive oct key")
 		}
 
-		logrus.Debugf("Symmetric key %s (salt: %s label: Symmetric Encryption Key)\n", hex.EncodeToString(octKeyBytes), keyBlob.Salt)
+		logrus.Debugf("Symmetric key %s (salt: %s label: %s)\n", hex.EncodeToString(octKeyBytes), keyDerivationBlob.Salt, labelString)
 	}
 
 	// 3) dm-crypt expects a key file, so create a key file using the key released in
@@ -286,7 +294,7 @@ func containerMountAzureFilesystem(tempDir string, index int, fs AzureFilesystem
 
 	var keyFilePath string
 	if fs.KeyBlob.KID != "" {
-		keyFilePath, err = releaseRemoteFilesystemKey(tempDir, fs.KeyBlob)
+		keyFilePath, err = releaseRemoteFilesystemKey(tempDir, fs.KeyDerivationBlob, fs.KeyBlob)
 		if err != nil {
 			return errors.Wrapf(err, "failed to obtain keyfile")
 		}
