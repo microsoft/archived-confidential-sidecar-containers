@@ -20,8 +20,8 @@ When importing a key to the key vault, a release policy is coupled with the key.
         "authority": {
             "endpoint": "sharedneu.neu.attest.azure.net"
         },
-        "mhsm": {
-            "endpoint": "svolos-myhsm.managedhsm.azure.net", 
+        "akv": {
+            "endpoint": "myhsm.managedhsm.azure.net", 
             "api_version": "api-version=7.3-preview",
             "bearer_token": ""
         }
@@ -64,10 +64,10 @@ The tool currently supports two types of keys specified in the `kty` attribute o
     The key derivation information may be passed via the key_derivation
     attribute (salt passed as a hexstring and label passed as a string.)
 
-The tool can work outside an Azure VM by obtaining the token from the mhsm.BearerToken field in the configuration file. The field can be updated using a token retrieved using the command
+The tool can work outside an Azure VM by obtaining the token from the akv.BearerToken field in the configuration file. The field can be updated using a token retrieved using the command
 
 `az login`
 
 `az account get-access-token --resource https://managedhsm.azure.net`
 
-The tool can work inside an Azure VM assuming the VM has been assigned a managed identity that has the right permissions to access the MHSM endpoint. 
+The tool can work inside an Azure VM assuming the VM has been assigned a managed identity that has the right permissions to access the AKV endpoint. 

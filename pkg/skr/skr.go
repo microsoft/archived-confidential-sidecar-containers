@@ -29,11 +29,11 @@ type KeyDerivationBlob struct {
 	Label string `json:"label,omitemtpy`
 }
 
-// KeyBlob contains information about the managed hsm service that holds the secret
+// KeyBlob contains information about the AKV service that holds the secret
 // to be released.
 //
-// Authority lists the valid MAA that can issue tokens that the managed hsm service
-// will accept. The key imported to this managed hsm needs to have included the
+// Authority lists the valid MAA that can issue tokens that the AKV service
+// will accept. The key imported to this AKV needs to have included the
 // authority's endpoint as the authority in the SKR.
 
 type KeyBlob struct {
@@ -41,18 +41,18 @@ type KeyBlob struct {
 	KTY       string     `json:"kty,omitempty"`
 	KeyOps    []string   `json:"key_ops,omitempty"`
 	Authority attest.MAA `json:"authority"`
-	MHSM      MHSM       `json:"mhsm"`
+	AKV       AKV        `json:"akv"`
 }
 
-// SecureKeyRelease releases a secret identified by the KID and MHSM in the keyblob
+// SecureKeyRelease releases a secret identified by the KID and AKV in the keyblob
 //  1. Retrieve an MAA token using the attestation package. This token can be presented to a Azure Key
-//     Vault managed HSM to release a secret.
-//  2. Present the MAA token to the managed HSM for each secret that will be released. The managed HSM
+//     Vault to release a secret.
+//  2. Present the MAA token to the AKV for each secret that will be released. The AKV
 //     uses the public key presented as runtime-claims in the MAA token to wrap the released secret. This
 //     ensures that only the utility VM in posession of the private wrapping key can decrypt the material
 //
 // The method requires serveral attributes including the security policy, the keyblob that contains
-// information about the mhsm, authority and the key to be released.
+// information about the AKV, authority and the key to be released.
 func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ []byte, _ string, err error) {
 
 	logrus.Debugf("Releasing key blob: %v", SKRKeyBlob)
@@ -86,11 +86,11 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 	//     authentication using an Azure authentication token.
 
 	// retrieve an Azure authentication token for authenticating with AKV
-	if SKRKeyBlob.MHSM.BearerToken == "" {
+	if SKRKeyBlob.AKV.BearerToken == "" {
 		var ResourceIDTemplate string
 		// If endpoint contains managedhsm, request a token for managedhsm
 		// resource; otherwise for a vault
-		if strings.Contains(SKRKeyBlob.MHSM.Endpoint, "managedhsm") {
+		if strings.Contains(SKRKeyBlob.AKV.Endpoint, "managedhsm") {
 			ResourceIDTemplate = ResourceIdManagedHSM
 		} else {
 			ResourceIDTemplate = ResourceIdVault
@@ -101,16 +101,16 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 			return nil, "", errors.Wrapf(err, "retrieving authentication token failed")
 		}
 
-		// set the azure authentication token to the MHSM instance
-		SKRKeyBlob.MHSM.BearerToken = token.AccessToken
+		// set the azure authentication token to the AKV instance
+		SKRKeyBlob.AKV.BearerToken = token.AccessToken
 		logrus.Debugf("AAD Token: %s ", token.AccessToken)
 	}
 
-	// use the MAA token obtained from the mhsm's authority to retrieve the key identified by kid. The ReleaseKey
+	// use the MAA token obtained from the AKV's authority to retrieve the key identified by kid. The ReleaseKey
 	// operation requires the private wrapping key to unwrap the encrypted key material released from
-	// the managed HSM.
+	// the AKV.
 
-	key, kty, err := SKRKeyBlob.MHSM.ReleaseKey(maaToken, SKRKeyBlob.KID, privateWrappingKey)
+	key, kty, err := SKRKeyBlob.AKV.ReleaseKey(maaToken, SKRKeyBlob.KID, privateWrappingKey)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "releasing the key %s failed", SKRKeyBlob.KID)
 	}
