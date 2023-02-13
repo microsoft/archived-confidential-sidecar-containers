@@ -6,7 +6,6 @@ package skr
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/base64"
 	"strings"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
@@ -54,7 +53,7 @@ type KeyBlob struct {
 //
 // The method requires serveral attributes including the security policy, the keyblob that contains
 // information about the mhsm, authority and the key to be released.
-func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ []byte, err error) {
+func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ []byte, _ string, err error) {
 
 	logrus.Debugf("Releasing key blob: %v", SKRKeyBlob)
 
@@ -77,23 +76,10 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 		return nil, "", errors.Wrapf(err, "generating key blob failed")
 	}
 
-	// base64 decode the incoming encoded security policy
-	if EncodedSecurityPolicy == "" {
-		maaToken, err = attest.Attest(SKRKeyBlob.Authority, jwkSetBytes, uvmInformation)
-		if err != nil {
-			return nil, "", errors.Wrapf(err, "attestation failed")
-		}
-	} else {
-		policyBlobBytes, err := base64.StdEncoding.DecodeString(EncodedSecurityPolicy)
-		if err != nil {
-			return nil, "", errors.Wrap(err, "decoding policy from Base64 format failed")
-		}
-
-		// Attest
-		maaToken, err = attest.Attest(certCache, SKRKeyBlob.Authority, policyBlobBytes, jwkSetBytes)
-		if err != nil {
-			return nil, "", errors.Wrapf(err, "attestation failed")
-		}
+	// Attest
+	maaToken, err = attest.Attest(SKRKeyBlob.Authority, jwkSetBytes, uvmInformation)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "attestation failed")
 	}
 
 	// 2. Interact with Azure Key Vault. The REST API of AKV requires

@@ -189,7 +189,7 @@ func postKeyRelease(c *gin.Context) {
 		MHSM:      mhsm,
 	}
 
-	keyBytes, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)
+	keyBytes, kty, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
