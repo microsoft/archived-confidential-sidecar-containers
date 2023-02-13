@@ -228,7 +228,7 @@ Upon success, the `key/release` POST method reponse carries a `StatusOK` header 
 
 ```json
 {
-    "key": "<key in JSON Web Key format"
+    "key": "<key in JSON Web Key format>"
 }
 ```
 
