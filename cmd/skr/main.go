@@ -233,7 +233,7 @@ func main() {
 	port := flag.String("port", "8080", "Port on which to listen")
 
 	// WARNING!!!
-	// If the security policy does not control the areguments to this process then
+	// If the security policy does not control the arguments to this process then
 	// this hostname could be set to 0.0.0.0 (an external interface) rather than 127.0.0.1 (visible only
 	// witin the container group/pod)and so expose the attestation and key release outside of the secure uvm
 

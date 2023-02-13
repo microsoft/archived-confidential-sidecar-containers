@@ -4,10 +4,10 @@
 package attest
 
 /*
-	This is no longer required as these platform certificates from AMD are
+	This is not currently strictly required as these platform certificates from AMD are
 	now provided by GCS to containers as an environment variable UVM_HOST_AMD_CERTIFICATE
 
-	It will be removed eventually but is required for the tests at present.
+	It is required for the tests and when running outside of Azure.
 */
 
 import (

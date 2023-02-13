@@ -6,8 +6,8 @@ package attest
 import (
 	"encoding/base64"
 	"encoding/hex"
-	
-	// "io/ioutil" needed when generating test data
+
+	"io/ioutil"
 	"os"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
@@ -74,10 +74,13 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 
 		At this point check that the TCB of the cert chain matches that reported so we fail early or
 		fetch fresh certs by other means.
-		 
+
 	*/
 
-	// ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
+	if common.GenerateTestData {
+		ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
+	}
+
 	logrus.Debugf("   SNPReportBytes:    %v", SNPReportBytes)
 
 	// Retrieve the certificate chain using the chip identifier and platform version
@@ -88,6 +91,9 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 	}
 
 	vcekCertChain := []byte(uvmInformation.CertChain)
+
+	/* TODO: to support use outside of Azure add code to fetch the AMD certs here */
+
 	uvmReferenceInfoBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedUvmReferenceInfo)
 
 	if err != nil {
