@@ -184,8 +184,6 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 		return "", err
 	}
 
-	fmt.Println("EncodedSecurityPolicy: ", EncodedUvmInformation.EncodedSecurityPolicy)
-
 	// 2) release key identified by keyBlob using encoded security policy
 
 	keyBytes := make([]byte, 32)
