@@ -1,6 +1,6 @@
 Secure Key Release
 ==================
-This tool instantiates a web server ( http://localhost:8080 ) which exposes a REST API so that other containers can retrieve raw attestation via the `attest/raw` POST method and MAA token via the `attest/maa` POST methods as well as release secrets from Azure Key Vault MHSM service via the `key/release` POST method.
+This tool instantiates a web server ( http://localhost:8080 ) which exposes a REST API so that other containers can retrieve raw attestation via the `attest/raw` POST method and MAA token via the `attest/maa` POST methods as well as release secrets from Azure Key Vault service via the `key/release` POST method. The latter two APIs require that the server is configured with a certificate cache endpoint during startup. The information for the cerificate cache endpoint is passed as a base64-encoded string and has the following schema:
 
 The tool can be executed using the script https://github.com/Microsoft/confidential-sidecar-containers/blob/master/skr.sh
 
@@ -83,7 +83,7 @@ Upon success, the `key/release` POST method reponse carries a `StatusOK` header 
 
 ```json
 {
-    "key": "<hexstring representation of the key>"
+    "key": "<key in JSON Web Key format>"
 }
 ```
 
