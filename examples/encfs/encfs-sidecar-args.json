@@ -5,12 +5,12 @@
          "azure_url":"<azure-blob-storage-url>",
 	      "azure_url_private": true,
          "key": {
-            "kid": "<key-vault-mhsm-key-identifier>",
+            "kid": "<key-vault-akv-key-identifier>",
             "authority": {
-                "endpoint": "<authority-of-key-imported-to-key-vault-mhsm>"
+                "endpoint": "<authority-of-key-imported-to-key-vault-akv>"
             },
-            "mhsm": {
-                "endpoint": "key-vault-mhsm-endpoint",    
+            "akv": {
+                "endpoint": "key-vault-akv-endpoint"
             }    
          }
       }

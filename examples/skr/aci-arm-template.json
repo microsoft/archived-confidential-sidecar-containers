@@ -19,7 +19,7 @@
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "<managed-identity-with-right-permissions-to-key-vault-mhsm>": {}
+          "<managed-identity-with-right-permissions-to-key-vault>": {}
         }
       },
       "properties": {
@@ -59,15 +59,15 @@
               "environmentVariables": [
                 {
                   "name": "SkrClientMAAEndpoint",
-                  "value": "<authority-of-key-imported-to-key-vault-mhsm>"
+                  "value": "<authority-of-key-imported-to-key-vault>"
                 },
                 {
-                  "name": "SkrClientMHSMEndpoint",
-                  "value": "<key-vault-mhsm-endpoint>"
+                  "name": "SkrClientAKVEndpoint",
+                  "value": "<key-vault-endpoint>"
                 },
                 {
                   "name": "SkrClientKID",
-                  "value": "<key-vault-mhsm-key-identifier>"
+                  "value": "<key-vault-key-identifier>"
                 }
               ],
               "image": "<registry-name>/skr:latest",

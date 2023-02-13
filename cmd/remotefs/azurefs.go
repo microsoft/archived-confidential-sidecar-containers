@@ -50,7 +50,7 @@ var (
 	Identity              common.Identity
 	EncodedUvmInformation common.UvmInformation
 	// for testing encrypted filesystems without releasing secrets from
-	// MHSM allowTestingWithRawKey needs to be set to true and a raw key
+	// AKV allowTestingWithRawKey needs to be set to true and a raw key
 	// needs to have been provided. Default mode is that such testing is
 	// disabled.
 	allowTestingWithRawKey = false
@@ -167,8 +167,7 @@ func rawRemoteFilesystemKey(tempDir string, rawKeyHexString string) (keyFilePath
 	return keyFilePath, nil
 }
 
-// releaseRemoteFilesystemKey releases the key identified by keyBlob from managed HSM
-// azure key vault
+// releaseRemoteFilesystemKey releases the key identified by keyBlob from AKV
 //
 // 1) Retrieve encoded  security policy by reading the environment variable
 //
@@ -190,11 +189,6 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 	// 2) release key identified by keyBlob using encoded security policy
 
 	keyBytes := make([]byte, 32)
-
-	// MHSM has limit on the request size. We do not pass the EncodedSecurityPolicy here so
-	// it is not presented as fine-grained init-time claims in the MAA token, which would
-	// introduce larger MAA tokens that MHSM would accept
-
 	keyBytes, kty, err := skr.SecureKeyRelease(Identity, keyBlob, EncodedUvmInformation)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to release key: %v", keyBlob)
