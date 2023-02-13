@@ -83,7 +83,7 @@ Upon success, the `key/release` POST method reponse carries a `StatusOK` header 
 
 ```json
 {
-    "key": "<hexstring representation of the key>"
+    "key": "<key in JSON Web Key format>"
 }
 ```
 
