@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -211,7 +210,18 @@ func postKeyRelease(c *gin.Context) {
 	}
 
 	if kty == "oct" {
-		c.JSON(http.StatusOK, gin.H{"key": hex.EncodeToString(keyBytes)})
+		jwKey := jwk.NewSymmetricKey()
+		err := jwKey.FromRaw(keyBytes)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		jwkJSONBytes, err := json.Marshal(jwKey)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
 	} else if kty == "RSA-HSM" {
 
 		key, err := x509.ParsePKCS8PrivateKey(keyBytes)
