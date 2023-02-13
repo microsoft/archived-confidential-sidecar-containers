@@ -247,7 +247,7 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 			return "", errors.Wrapf(err, "failed to derive oct key")
 		}
 
-		logrus.Debugf("Symmetric key %s (salt: %s label: %s)\n", hex.EncodeToString(octKeyBytes), keyDerivationBlob.Salt, labelString)
+		logrus.Debugf("Symmetric key %s (salt: %s label: %s)", hex.EncodeToString(octKeyBytes), keyDerivationBlob.Salt, labelString)
 	}
 
 	// 3) dm-crypt expects a key file, so create a key file using the key released in

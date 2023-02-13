@@ -33,7 +33,7 @@
               "environmentVariables": [
                 {
                   "name": "SkrSideCarArgs",
-                  "value": "ewogICAiY2VydGNhY2hlIjogewogICAgICAiZW5kcG9pbnQiOiAiYW1lcmljYXMuYWNjY2FjaGUuYXp1cmUubmV0IiwKICAgICAgInRlZV90eXBlIjogIlNldlNucFZNIiwKICAgICAgImFwaV92ZXJzaW9uIjogImFwaS12ZXJzaW9uPTIwMjAtMTAtMTUtcHJldmlldyIKICAgfSAgICAgIAp9"
+                  "value": "ewoKfQ=="
                 }
               ],
               "image": "<registry-name>/skr:latest",
