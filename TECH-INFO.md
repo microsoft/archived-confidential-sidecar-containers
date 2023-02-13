@@ -21,7 +21,7 @@ This tool takes an argument such as this:
                  "authority": {
                      "endpoint": "sharedneu.neu.attest.azure.net"
                  },
-                 "mhsm": { 
+                 "akv": { 
                      "endpoint": "avaultname.vault.azure.net"
                  }
             }            
@@ -35,8 +35,8 @@ This tool takes an argument such as this:
                  "authority": {
                      "endpoint": "sharedneu.neu.attest.azure.net"
                  },
-                 "mhsm": { 
-                     "endpoint": "anotherhsmname.managedhsm.azure.net"
+                 "akv": { 
+                     "endpoint": "amanagedhsmname.managedhsm.azure.net"
                  }
             }              
         }
@@ -51,8 +51,8 @@ URL in the corresponding mountpoint. The URL can be private (which will be acces
 using token credentials obtained for a user-defined identity) or public (which will
 be accessed using anonymous credentials.)
 
-The SKR information need to specify the key identifier, the MHSM endpoint in which the 
-key is stored, and the authority endpoint which can authorize the MHSM for releasing 
+The SKR information need to specify the key identifier, the AKV endpoint in which the 
+key is stored, and the authority endpoint which can authorize the AKV for releasing 
 the key assuming the release policy is satisfied with claims presented in the authority's 
 token. For testing
 purposes, it is possible to pass the raw hexstring key as opposed to SKR information.
@@ -198,7 +198,7 @@ The `key/release` POST method expects a JSON of the following format:
 ```json
 {	
     "maa_endpoint": "<maa endpoint>",
-    "mhsm_endpoint": "<mhsm endpoint>",
+    "akv_endpoint": "<akv endpoint>",
     "kid": "<key identifier>",
     "access_token": "optional aad token if the command will run in a resource without proper managed identity assigned"
 }
