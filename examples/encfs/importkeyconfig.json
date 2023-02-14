@@ -1,6 +1,7 @@
 {
     "key":{
         "kid": "<key-vault-key-identifier>",
+        "kty": "<key-type-of-key-imported-to-akv>",
         "authority": {
             "endpoint": "<authority-of-key-imported-to-akv>"
         },
@@ -10,6 +11,10 @@
             "bearer_token": "<aad-token-with-permissions-to-akv>"
         }
     },
+    "key_derivation": {
+        "salt": "<salt-for-key-derivation-valid-only-for-RSA-HSM-keys>",
+        "label": "<label-for-derived-key-valid-only-for-RSA-HSM-keys>"
+     },    
     "claims":[        
         [{
             "claim":  "x-ms-sevsnpvm-launchmeasurement",

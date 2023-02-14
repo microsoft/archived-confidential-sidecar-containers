@@ -10,10 +10,6 @@ When importing a key to the key vault, a release policy is coupled with the key.
 
 ```json
 {
-    "key_derivation":{
-        "salt": "92a631483ca875aad7e2477da755d58cac3876b77d10bcdd7b33bfa11e7d8b8e",
-        "label": "Model Encryption Key"
-    },
     "key":{
         "kid": "AttestationContainer2",
         "kty": "RSA-HSM",
@@ -25,6 +21,10 @@ When importing a key to the key vault, a release policy is coupled with the key.
             "api_version": "api-version=7.3-preview",
             "bearer_token": ""
         }
+    },
+    "key_derivation":{
+        "salt": "92a631483ca875aad7e2477da755d58cac3876b77d10bcdd7b33bfa11e7d8b8e",
+        "label": "Model Encryption Key"
     },
     "claims":[
         {

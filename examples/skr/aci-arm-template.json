@@ -30,12 +30,6 @@
               "command": [
                 "/skr.sh"
               ],
-              "environmentVariables": [
-                {
-                  "name": "SkrSideCarArgs",
-                  "value": "ewoKfQ=="
-                }
-              ],
               "image": "<registry-name>/skr:latest",
               "resources": {
                 "requests": {

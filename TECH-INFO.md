@@ -11,10 +11,6 @@ This tool takes an argument such as this:
             "mount_point":"/remotemounts/share1",
             "azure_url":"https://samplename.blob.core.windows.net/public-container/image-encrypted-1.img",
             "azure_url_private": true,
-            "key_derivation":{
-                "salt": "92a631483ca875aad7e2477da755d58cac3876b77d10bcdd7b33bfa11e7d8b8e",
-                "label": "Encryption Key"
-            },
             "key": {
                  "kid": "EncryptedFilesystemsContainer",
                  "kty": "RSA-HSM",
@@ -24,6 +20,10 @@ This tool takes an argument such as this:
                  "akv": { 
                      "endpoint": "avaultname.vault.azure.net"
                  }
+            },
+            "key_derivation":{
+                "salt": "92a631483ca875aad7e2477da755d58cac3876b77d10bcdd7b33bfa11e7d8b8e",
+                "label": "Encryption Key"
             }            
         },
         {
