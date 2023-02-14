@@ -9,7 +9,6 @@ package main
 import (
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -24,7 +23,6 @@ import (
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -185,33 +183,34 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 	}
 
 	// 2) release key identified by keyBlob using encoded security policy
-
-	keyBytes := make([]byte, 32)
-	keyBytes, kty, err := skr.SecureKeyRelease(Identity, keyBlob, EncodedUvmInformation)
+	jwKey, err := skr.SecureKeyRelease(Identity, keyBlob, EncodedUvmInformation)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to release key: %v", keyBlob)
 		return "", errors.Wrapf(err, "failed to release key")
 	}
+	logrus.Debugf("Key Type: %s", jwKey.KeyType())
 
-	var octKeyBytes []byte
-	if kty == "oct" {
-		octKeyBytes = keyBytes
-	} else if kty == "RSA-HSM" {
-		key, err := x509.ParsePKCS8PrivateKey(keyBytes)
-		if err != nil {
-			logrus.WithError(err).Debugf("failed to parse RSA key")
-			return "", errors.Wrapf(err, "failed to parse RSA key")
+	octetKeyBytes := make([]byte, 32)
+	var rawKey interface{}
+	err = jwKey.Raw(&rawKey)
+	if err != nil {
+		logrus.WithError(err).Debugf("failed to extract raw key")
+		return "", errors.Wrapf(err, "failed to extract raw key")
+	}
+
+	if jwKey.KeyType() == "oct" {
+		rawOctetKeyBytes, ok := rawKey.([]byte)
+		if !ok || len(rawOctetKeyBytes) != 32 {
+			logrus.WithError(err).Debugf("expected 32-byte octet key")
+			return "", errors.Wrapf(err, "expected 32-byte octet key")
 		}
-
-		var privateRSAKey *rsa.PrivateKey = key.(*rsa.PrivateKey)
-
-		jwKey := jwk.NewRSAPrivateKey()
-		err = jwKey.FromRaw(privateRSAKey)
-		if err != nil {
-			logrus.WithError(err).Debugf("failed to encode RSA key as JWK")
-			return "", errors.Wrapf(err, "failed to encode RSA key as JWK")
+		octetKeyBytes = rawOctetKeyBytes
+	} else if jwKey.KeyType() == "RSA" {
+		rawKey, ok := rawKey.(*rsa.PrivateKey)
+		if !ok {
+			logrus.WithError(err).Debugf("expected RSA key")
+			return "", errors.Wrapf(err, "expected RSA key")
 		}
-
 		// use sha256 as hashing function for HKDF
 		hash := sha256.New
 
@@ -230,21 +229,23 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 			return "", errors.Wrapf(err, "failed to decode salt hexstring")
 		}
 
-		hkdf := hkdf.New(hash, jwKey.D(), salt, []byte(labelString))
+		hkdf := hkdf.New(hash, rawKey.D.Bytes(), salt, []byte(labelString))
 
 		// derive key
-		octKeyBytes = make([]byte, 32)
-		if _, err := io.ReadFull(hkdf, octKeyBytes); err != nil {
+		if _, err := io.ReadFull(hkdf, octetKeyBytes); err != nil {
 			logrus.WithError(err).Debugf("failed to derive oct key")
 			return "", errors.Wrapf(err, "failed to derive oct key")
 		}
 
-		logrus.Debugf("Symmetric key %s (salt: %s label: %s)", hex.EncodeToString(octKeyBytes), keyDerivationBlob.Salt, labelString)
+		logrus.Debugf("Symmetric key %s (salt: %s label: %s)", hex.EncodeToString(octetKeyBytes), keyDerivationBlob.Salt, labelString)
+	} else {
+		logrus.WithError(err).Debugf("key type %snot supported", jwKey.KeyType())
+		return "", errors.Wrapf(err, "key type %s not supported", jwKey.KeyType())
 	}
 
 	// 3) dm-crypt expects a key file, so create a key file using the key released in
 	//    previous step
-	err = ioutilWriteFile(keyFilePath, octKeyBytes, 0644)
+	err = ioutilWriteFile(keyFilePath, octetKeyBytes, 0644)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to delete keyfile: %s", keyFilePath)
 		return "", errors.Wrapf(err, "failed to write keyfile")

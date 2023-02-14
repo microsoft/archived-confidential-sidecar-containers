@@ -6,10 +6,12 @@ package skr
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"strings"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -44,16 +46,18 @@ type KeyBlob struct {
 	AKV       AKV        `json:"akv"`
 }
 
-// SecureKeyRelease releases a secret identified by the KID and AKV in the keyblob
+// SecureKeyRelease releases a key identified by the KID and AKV in the keyblob.
 //  1. Retrieve an MAA token using the attestation package. This token can be presented to a Azure Key
 //     Vault to release a secret.
 //  2. Present the MAA token to the AKV for each secret that will be released. The AKV
 //     uses the public key presented as runtime-claims in the MAA token to wrap the released secret. This
 //     ensures that only the utility VM in posession of the private wrapping key can decrypt the material
 //
-// The method requires serveral attributes including the security policy, the keyblob that contains
+// The method requires serveral attributes including the uVM infomration, keyblob that contains
 // information about the AKV, authority and the key to be released.
-func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ []byte, _ string, err error) {
+//
+// The return type is a JWK key
+func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformation common.UvmInformation) (_ jwk.Key, err error) {
 
 	logrus.Debugf("Releasing key blob: %v", SKRKeyBlob)
 
@@ -67,19 +71,19 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 	// generate rsa key pair
 	privateWrappingKey, err := rsa.GenerateKey(rand.Reader, RSASize)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "rsa key pair generation failed")
+		return nil, errors.Wrapf(err, "rsa key pair generation failed")
 	}
 
 	// construct the key blob
 	jwkSetBytes, err := common.GenerateJWKSet(privateWrappingKey)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "generating key blob failed")
+		return nil, errors.Wrapf(err, "generating key blob failed")
 	}
 
 	// Attest
 	maaToken, err = attest.Attest(SKRKeyBlob.Authority, jwkSetBytes, uvmInformation)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "attestation failed")
+		return nil, errors.Wrapf(err, "attestation failed")
 	}
 
 	// 2. Interact with Azure Key Vault. The REST API of AKV requires
@@ -98,7 +102,7 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 
 		token, err := common.GetToken(ResourceIDTemplate, identity)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "retrieving authentication token failed")
+			return nil, errors.Wrapf(err, "retrieving authentication token failed")
 		}
 
 		// set the azure authentication token to the AKV instance
@@ -110,12 +114,35 @@ func SecureKeyRelease(identity common.Identity, SKRKeyBlob KeyBlob, uvmInformati
 	// operation requires the private wrapping key to unwrap the encrypted key material released from
 	// the AKV.
 
-	key, kty, err := SKRKeyBlob.AKV.ReleaseKey(maaToken, SKRKeyBlob.KID, privateWrappingKey)
+	keyBytes, kty, err := SKRKeyBlob.AKV.ReleaseKey(maaToken, SKRKeyBlob.KID, privateWrappingKey)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "releasing the key %s failed", SKRKeyBlob.KID)
+		return nil, errors.Wrapf(err, "releasing the key %s failed", SKRKeyBlob.KID)
 	}
 
-	logrus.Debugf("Key Type: %s Key %v", kty, key)
+	logrus.Debugf("Key Type: %s Key %v", kty, keyBytes)
 
-	return key, kty, nil
+	if kty == "oct" || kty == "oct-HSM" {
+		jwKey := jwk.NewSymmetricKey()
+		err := jwKey.FromRaw(keyBytes)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not encode OCT key as JWK")
+		}
+		return jwKey, nil
+	} else if kty == "RSA-HSM" || kty == "RSA" {
+		key, err := x509.ParsePKCS8PrivateKey(keyBytes)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not parse RSA key")
+		}
+
+		var privateRSAKey *rsa.PrivateKey = key.(*rsa.PrivateKey)
+
+		jwKey := jwk.NewRSAPrivateKey()
+		err = jwKey.FromRaw(privateRSAKey)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not encode RSA key as JWK")
+		}
+		return jwKey, nil
+	} else {
+		return nil, errors.Wrapf(err, "released key type not supported")
+	}
 }

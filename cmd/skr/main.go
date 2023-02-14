@@ -4,8 +4,6 @@
 package main
 
 import (
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -17,7 +15,6 @@ import (
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -189,51 +186,22 @@ func postKeyRelease(c *gin.Context) {
 		AKV:       akv,
 	}
 
-	keyBytes, kty, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)
+	jwKey, err := skr.SecureKeyRelease(Identity, skrKeyBlob, EncodedUvmInformation)
+
+	logrus.Debugf("Key released of type %s", jwKey.KeyType())
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
-	if kty == "oct" {
-		jwKey := jwk.NewSymmetricKey()
-		err := jwKey.FromRaw(keyBytes)
-		if err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-		jwkJSONBytes, err := json.Marshal(jwKey)
-		if err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
-	} else if kty == "RSA-HSM" {
-
-		key, err := x509.ParsePKCS8PrivateKey(keyBytes)
-		if err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-
-		var privateRSAKey *rsa.PrivateKey = key.(*rsa.PrivateKey)
-
-		jwKey := jwk.NewRSAPrivateKey()
-		err = jwKey.FromRaw(privateRSAKey)
-		if err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-
-		jwkJSONBytes, err := json.Marshal(jwKey)
-		if err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
+	jwkJSONBytes, err := json.Marshal(jwKey)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
 }
 
 func setupServer(identity common.Identity) *gin.Engine {
