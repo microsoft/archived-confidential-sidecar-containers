@@ -229,6 +229,7 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 			return "", errors.Wrapf(err, "failed to decode salt hexstring")
 		}
 
+		// setup derivation function using secret D exponent, salt, and label
 		hkdf := hkdf.New(hash, rawKey.D.Bytes(), salt, []byte(labelString))
 
 		// derive key
