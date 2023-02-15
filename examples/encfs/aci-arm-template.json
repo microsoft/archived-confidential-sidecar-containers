@@ -36,7 +36,7 @@
                   "value": "<base64-std-encodes-string-of-sidecar-args>"
                 }
               ],
-              "image": "<registry-name>/encfs:latest",
+              "image": "<registry-name>/encfs:<tag_version>",
               "resources": {
                 "requests": {
                   "cpu": 1,
