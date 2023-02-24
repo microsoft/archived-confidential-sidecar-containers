@@ -43,13 +43,13 @@ The user needs to upload the blob to the previously generated storage container
 `azcopy copy --blob-type=PageBlob ./generatefs/encfs.img 'https://<storage-container-uri>.blob.core.windows.net/private-container/encfs.img?<SAS_token_to_container_with_write_create_read_permissions>`
 
 ### Security policy generation
-Deploying a confidential container group requires generating a security policy that restricts what containers can run within the container group. There is an az tool available for generation of policies.
+Deploying a confidential container group requires generating a security policy that restricts what containers can run within the container group. There is an az tool available for generating policies. See [here](https://github.com/Azure/azure-cli-extensions/tree/main/src/confcom/azext_confcom#microsoft-azure-cli-confcom-extension-examples) for installing Azure `confcom` CLI extension.  
 
-`az extension add –source https://acccliazext.blob.core.windows.net/confcom/confcom-<latest-version>-py3-none-any.whl -y`
+The ARM template can be used directly to generate a security policy. The following command generates a security policy and automatically injects it into the template. 
 
-`az confcom acipolicygen -i policy-in.json -s policy-out.json -orp`
+    `az confcom acipolicygen -a aci-arm-template.json`
 
-The policy-input file includes two entries: (i) encrypted filesystem sidecar container which whitelists the /encfs.sh as entry point command and the environment variable *EncfsSideCarArgs* used by the script, and (ii) an application container which whitelists a while loop command as entry point command. 
+The ARM template file file includes two entries: (i) encrypted filesystem sidecar container which whitelists the /encfs.sh as entry point command and the environment variable *EncfsSideCarArgs* used by the script, and (ii) an application container which whitelists a while loop command as entry point command. NOTE: the current image used in the ARM template is built upon commit id a82b530. 
 
 ### Import encryption key
 The user needs to instantiate an Azure Key Vault resource that supports storing keys in an HSM: a [Premium vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) or an [MHSM resource](https://docs.microsoft.com/en-us/azure/key-vault/managed-hsm/overview). For the former, the user needs to assign 
@@ -59,11 +59,15 @@ Once the key vault resource is ready, the user can import `RSA-HSM` or `oct-HSM`
 
 `go run <parent_dir>/tools/securitypolicydigest/main.go -p <base64-std-encoded-string-of-security-policy>`
 
+And the AAD token with permission to AKV/mHSM can be obtained with the following command:
+
+`az account get-access-token --resource https://managedhsm.azure.net`
+
 Once the `importkeyconfig.json` is updated, execute the following command:
 
 `cd <parent_dir>/tools/importkey`
 
-`go run main.go -c <parent_dir>/examples/encfs/importkeyconfig.json -kh deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef -out`
+`go run main.go -c <parent_dir>/examples/encfs/importkeyconfig.json -kh <hexstring encoding oct-HSM key> -out`
 
 `go run main.go -c <parent_dir>/examples/encfs/importkeyconfig.json -kp private-key.pem -out`
 
@@ -73,7 +77,7 @@ For `RSA-HSM` keys, the `importkey` (if prompted using the `-out` flag) derives 
 to use the private RSA key as entropy for a symmetric key as logn as the RSA key pair is not used for any other cryptographic operation.
 
 ## Testing
-In our confidential container group example, we will deploy the encrypted filesystem sidecar along with a simple container that runs indefentely. The simple container will have access to the remote filesystem mounted by the sidecar container.
+In our confidential container group example, we will deploy the encrypted filesystem sidecar along with a simple container that runs indefinitely. The simple container will have access to the remote filesystem mounted by the sidecar container.
 
 ### Deployment
 The `aci-arm-template.json` provides an ACI ARM template which can be parametrized using the security policy obtained above, the registry name (and credentials if private), the user-assigned managed identity, and the encrypted filesystem sidecar's *EncfsSideCarArgs* set to the base64-std-encoded-string of the sidecar's runtime attribute specified in the `encfs-sidecar-args.json` 
@@ -86,4 +90,11 @@ lost+found  test.txt
 
 / # cat /mnt/remote/share/test.txt 
 This is a file inside the filesystem.
+```
+
+Alternatively, the whitelisted command in test-encfs-container outputs the following log, which users are able to see under the Logs tab.
+```
+This is a file inside the filesystem.
+This is a file inside the filesystem.
+
 ```
