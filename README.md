@@ -3,7 +3,7 @@ This repository contains the code needed to build the sidecar containers used fo
 
 The code in this repository should be located at ``$GOPATH/src/microsoft/confidential-sidecar-containers``.
 
-For more information on how the tools work and the sidecar's base64-encoded string attributes, check [the tecnical documentation](./TECH-INFO.md).
+For more information on how the tools work and the sidecar's base64-encoded string attributes, check [the technical documentation](/TECH-INFO.md).
 
 ## Secure key release (SKR) sidecar
 The ``docker/skr/build.sh`` script builds all necessary Go tools for secure key release as standalone binaries and creates a Docker image that contains them so that it 
@@ -38,8 +38,8 @@ to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simpl
 instructions provided by the bot. You will only need to do this once across all repositories using our CLA.
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)
+For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)
 or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
 # Trademarks
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow Microsoft’s Trademark & Brand Guidelines. Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party’s policies.
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow Microsoft’s Trademark & Brand Guidelines. Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos is subject to those third-party’s policies.

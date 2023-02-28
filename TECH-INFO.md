@@ -1,5 +1,5 @@
 # azmount and remotefs
-The encrypted filesystem sidecar container relies on two tools azmount and remotefs. 
+The encrypted filesystem sidecar container relies on two tools: azmount and remotefs. 
 
 ## remotefs
 This tool takes an argument such as this:
@@ -136,7 +136,7 @@ Other command line options are:
 # skr
 We also provide a stand-alone tool for attestation and secure key release. This tool instantiates a web server which exposes a REST API so that other containers can retrieve a hardware attestation report via the POST method `attest/raw` or an MAA token via the POST method `attest/maa`, and release a key via the POST method `key/release`. The server is configured with a certificate cache endpoint during startup, and can be reached at http://localhost:8080. 
 
-The tool can be executed using the script https://github.com/Microsoft/confidential-sidecar-containers/blob/skr.sh and optionally the certificate cache endpoint information as an attribute to it or as an environment variable `SkrSidecarArgs`. If the script is executed without any certificate cache endpoint information, only  the `attest/raw` POST method is available.
+The tool can be executed using the script https://github.com/microsoft/confidential-sidecar-containers/blob/main/docker/skr/skr.sh and optionally the certificate cache endpoint information as an attribute to it or as an environment variable `SkrSidecarArgs`. If the script is executed without any certificate cache endpoint information, only  the `attest/raw` POST method is available.
 
 
 ## API
