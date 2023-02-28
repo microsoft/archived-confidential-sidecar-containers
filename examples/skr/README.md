@@ -39,7 +39,7 @@ Once the `importkeyconfig.json` is updated, execute the following command:
 
 `cd <parent_dir>/tools/importkey`
 
-`go run main.go -c <parent_dir>/examples/skr/importkeyconfig.json -kh <hexstring encoding oct-HSM key>`
+`go run main.go -c <parent_dir>/examples/skr/importkeyconfig.json
 
 ### Deployment
 The `aci-arm-template.json` provides an ARM template which can be parametrized using the security policy obtained above, the registry name (and credentials if private), the user-assigned managed identity, and the URIs to the endpoints required by the sidecar and test containers, discussed above.
