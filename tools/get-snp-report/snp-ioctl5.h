@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+/* linux kernel 5.15.* versions of the ioctls that talk to the PSP */
+
 /* From sev-snp driver include/uapi/linux/psp-sev-guest.h */
 struct sev_snp_guest_request {
 	uint8_t req_msg_type;

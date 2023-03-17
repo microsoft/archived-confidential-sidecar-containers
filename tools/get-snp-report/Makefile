@@ -10,7 +10,7 @@ bin/get-fake-snp-report: get-fake-snp-report.o
 	@mkdir -p bin
 	$(CC) $(LDFLAGS) -o $@ $^
 
-bin/get-snp-report: get-snp-report.o
+bin/get-snp-report: get-snp-report.o get-snp-report5.o get-snp-report6.o helpers.o
 	@mkdir -p bin
 	$(CC) $(LDFLAGS) -o $@ $^
 
