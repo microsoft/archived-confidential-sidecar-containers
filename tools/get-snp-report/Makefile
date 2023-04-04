@@ -6,7 +6,7 @@ LDFLAGS:=-static -s # strip C binaries
 
 all: bin/get-snp-report bin/get-fake-snp-report bin/verbose-report
 
-bin/get-fake-snp-report: get-fake-snp-report.o
+bin/get-fake-snp-report: get-fake-snp-report.o helpers.o
 	@mkdir -p bin
 	$(CC) $(LDFLAGS) -o $@ $^
 
