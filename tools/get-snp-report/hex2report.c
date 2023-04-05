@@ -24,6 +24,10 @@ int main(int argc, char** argv)
         fprintf(stderr, "empty pipe\n");
         exit(-1);
     }
+    if (bytes_read < sizeof(snp_attestation_report)) {
+        fprintf(stderr, "pipe too short\n");
+        exit(-1);
+    }
     buffer[bytes_read] = 0;
 
     uint8_t* byte_array = decodeHexString(buffer, 0);
