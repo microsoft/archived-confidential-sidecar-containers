@@ -27,7 +27,7 @@ bool fetchAttestationReport5(const char* report_data_hexstring, void **snp_repor
     msg_report_req msg_report_in;    
     msg_response_resp msg_report_out;
     
-    int fd, rc;	
+    int fd, rc;
     
     struct sev_snp_guest_request payload = {
         .req_msg_type = SNP_MSG_REPORT_REQ,
