@@ -19,7 +19,6 @@ bool supportsDevSevGuest()
     return access("/dev/sev-guest", W_OK) == 0;
 }
 
-
 bool fetchAttestationReport6(const char* report_data_hexstring, void **snp_report)
 {
     int fd;
@@ -41,6 +40,14 @@ bool fetchAttestationReport6(const char* report_data_hexstring, void **snp_repor
 	snp_guest_request_ioctl ioctl_request;
 
 	memset(&snp_request, 0, sizeof(snp_request));
+    
+    // the report data is passed as a hexstring which needs to be decoded into an array of 
+    // unsigned bytes
+    // MAA expects a SHA-256. So we use left align the bytes in the report data.
+
+    uint8_t *reportData = decodeHexString(report_data_hexstring, sizeof(snp_request.report_data));   
+    memcpy(snp_request.report_data, reportData, sizeof(snp_request.report_data));
+
 	memset(&snp_response, 0, sizeof(snp_response));
 	memset(&ioctl_request, 0, sizeof(ioctl_request));
 	

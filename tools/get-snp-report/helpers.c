@@ -15,10 +15,14 @@
 
 
 // Helper functions
-uint8_t* decodeHexString(const char *hexstring)
+uint8_t* decodeHexString(const char *hexstring, size_t padTo) // will zero pad to bufferLen
 {   
     size_t len = strlen(hexstring);
-    uint8_t *byte_array = (uint8_t*) malloc(strlen(hexstring)*sizeof(uint8_t));
+    size_t out_len = len/2+1;
+    if (out_len < padTo)
+        out_len = padTo;
+    uint8_t *byte_array = (uint8_t*) malloc(out_len);
+    memset(byte_array, 0, out_len);
     
     for (size_t i = 0; i < len; i+=2) {        
         sscanf(hexstring, "%2hhx", &byte_array[i/2]);

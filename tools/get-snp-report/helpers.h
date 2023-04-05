@@ -20,7 +20,7 @@
 #define PRINT_BYTES(ptr, field) printBytes(#field, (const uint8_t *)&(ptr->field), sizeof(ptr->field), false)
 
 // Helper functions
-uint8_t* decodeHexString(const char *hexstring);
+uint8_t* decodeHexString(const char *hexstring, size_t padTo);
 
 char* encodeHexToString(uint8_t byte_array[], size_t len);
 

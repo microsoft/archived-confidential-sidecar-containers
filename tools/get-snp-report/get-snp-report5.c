@@ -43,11 +43,12 @@ bool fetchAttestationReport5(const char* report_data_hexstring, void **snp_repor
     memset((void*) &msg_report_in, 0, sizeof(msg_report_in));        
     memset((void*) &msg_report_out, 0, sizeof(msg_report_out));
 
-    // MAA expects a SHA-256. So we use 32 bytes as size instead of msg_report_in.report_data
     // the report data is passed as a hexstring which needs to be decoded into an array of 
     // unsigned bytes
-    uint8_t *reportData = decodeHexString(report_data_hexstring);   
-    memcpy(msg_report_in.report_data, reportData, 32);
+    // MAA expects a SHA-256. So we use left align the bytes in the report data
+    
+    uint8_t *reportData = decodeHexString(report_data_hexstring, sizeof(msg_report_in.report_data));   
+    memcpy(msg_report_in.report_data, reportData, sizeof(msg_report_in.report_data));
 
     // open the file descriptor of the PSP
     fd = open("/dev/sev", O_RDWR | O_CLOEXEC);

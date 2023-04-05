@@ -4,7 +4,11 @@
 CFLAGS:=-O2 -Wall
 LDFLAGS:=-static -s # strip C binaries
 
-all: bin/get-snp-report bin/get-fake-snp-report bin/verbose-report
+all: bin/get-snp-report bin/get-fake-snp-report bin/verbose-report bin/hex2report
+
+bin/hex2report: hex2report.o helpers.o
+	@mkdir -p bin
+	$(CC) $(LDFLAGS) -o $@ $^
 
 bin/get-fake-snp-report: get-fake-snp-report.o helpers.o
 	@mkdir -p bin
