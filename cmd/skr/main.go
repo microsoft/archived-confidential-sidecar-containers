@@ -210,6 +210,7 @@ func setupServer(identity common.Identity) *gin.Engine {
 	logrus.Debugf("Setting security policy to %s", EncodedUvmInformation.EncodedSecurityPolicy)
 	logrus.Debugf("Setting platform certs to %s", EncodedUvmInformation.CertChain)
 	logrus.Debugf("Setting uvm reference to %s", EncodedUvmInformation.EncodedUvmReferenceInfo)
+	logrus.Debugf("Setting remote THIM Service URL to %s", EncodedUvmInformation.RemoteTHIMServiceURL)
 
 	r := gin.Default()
 
@@ -278,7 +279,7 @@ func main() {
 	logrus.Debugf("   Hostname:      %s", *hostname)
 	logrus.Debugf("   azure info:    %s", *azureInfoBase64string)
 
-	EncodedUvmInformation, err = common.GetUvmInfomation() // from the env.
+	EncodedUvmInformation, err = common.GetUvmInformation() // from the env.
 	if err != nil {
 		logrus.Fatalf("Failed to extract UVM_* environment variables: %s", err.Error())
 	}

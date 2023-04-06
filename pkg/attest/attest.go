@@ -69,14 +69,6 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 		return "", errors.Wrapf(err, "fetching snp report failed")
 	}
 
-	/*
-		TODO:
-
-		At this point check that the TCB of the cert chain matches that reported so we fail early or
-		fetch fresh certs by other means.
-
-	*/
-
 	if common.GenerateTestData {
 		ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
 	}
@@ -88,6 +80,33 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 	var SNPReport SNPAttestationReport
 	if err := SNPReport.DeserializeReport(SNPReportBytes); err != nil {
 		return "", errors.Wrapf(err, "failed to deserialize attestation report")
+	}
+
+	// check that the TCB of the cert chain matches that reported so we fail early or
+	// fetch certs again if the TCB has changed
+	var vcekTCBVersion uint64
+	vcekTCBVersion, err = uvmInformation.ParseVCEK()
+	if err != nil {
+		return "", errors.Wrap(err, "parsing VCEK failed")
+	}
+	// If the VCEK TCB version does not match the attestation report ReportedTCB
+	if vcekTCBVersion != SNPReport.ReportedTCB {
+		// Clear the cached CertChain
+		uvmInformation.CertChain = ""
+		// RefreshVCEK
+		err = uvmInformation.RefreshVCEK()
+		if err != nil {
+			return "", errors.Wrap(err, "refreshing VCEK failed")
+		}
+		// do the comparison again
+		vcekTCBVersion, err = uvmInformation.ParseVCEK()
+		if err != nil {
+			return "", errors.Wrap(err, "parsing VCEK failed on retry")
+		}
+		// If the refresh does not work, fail
+		if vcekTCBVersion != SNPReport.ReportedTCB {
+			return "", errors.Wrap(err, "VCEK TCB version does not match the attestation report ReportedTCB")
+		}
 	}
 
 	vcekCertChain := []byte(uvmInformation.CertChain)

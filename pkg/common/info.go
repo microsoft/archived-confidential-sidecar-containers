@@ -5,10 +5,16 @@ package common
 
 import (
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
 
+	"crypto/x509"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -26,9 +32,122 @@ type UvmInformation struct {
 	EncodedSecurityPolicy   string // customer security policy
 	CertChain               string // platform certificates for the actual physical host, ascii PEM
 	EncodedUvmReferenceInfo string // endorsements for the particular UVM image
+	RemoteTHIMServiceURL    string `json:",omitempty"` // URL where the remote THIM service is found
 }
 
-// format of the json provided to the UVM by hcsshim. Comes fro the THIM endpoint
+// returns the cached VCEK certificates (CertChain)
+// If the CertChain is nil, refresh the certificates from the remote service before returning
+func (u *UvmInformation) GetVCEK() string {
+	if u.CertChain == "" {
+		err := u.RefreshVCEK()
+		if err != nil {
+			logrus.Errorf("Error refreshing VCEK certificates: %v", err)
+		}
+	}
+	return u.CertChain
+}
+
+// fetches new VCEK certificates from the remote THIM endpoint
+func (u *UvmInformation) RefreshVCEK() error {
+	resp, err := HTTPGetRequest(u.RemoteTHIMServiceURL, false)
+	if err != nil {
+		logrus.Errorf("Error fetching remote VCEK cert: %v", err)
+		return err
+	}
+	responseData, err := HTTPResponseBody(resp)
+	if err != nil {
+		logrus.Errorf("Error reading remote VCEK cert: %v", err)
+		return err
+	}
+	u.CertChain = string(responseData)
+	return nil
+}
+
+// parses the cached CertChain and returns the VCEK leaf certificate
+// Subject of the (x509) VCEK certificate (CN=SEV-VCEK)
+func (u *UvmInformation) GetParsedVCEK() (*x509.Certificate, error) {
+	currChain := []byte(u.GetVCEK())
+	// iterate through the certificates in the chain
+	for len(currChain) > 0 {
+		var block *pem.Block
+		block, currChain = pem.Decode(currChain)
+		if block.Type == "CERTIFICATE" {
+			certificate, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			// check if this is the correct certificate
+			if certificate.Subject.CommonName == "SEV-VCEK" {
+				return certificate, nil
+			}
+		}
+	}
+	return nil, errors.New("No UVM certificate chain found")
+}
+
+// parses the VCEK certificate to return the TCB version
+// fields reprocessed back into a uint64 to compare against the `ReportedTCB` in the fetched attestation report
+func (u *UvmInformation) ParseVCEK() ( /*tcbVersion*/ uint64, error) {
+	vcekCert, err := u.GetParsedVCEK()
+	if err != nil {
+		return 0, err
+	}
+
+	tcbValues := make([]byte, 8) // TCB version is 8 bytes
+	var hwid, ucode, bl, tee, snp string
+	// parse extensions to update the THIM URL and get TCB Version
+	for _, ext := range vcekCert.Extensions {
+		// productName
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.2") {
+			u.RemoteTHIMServiceURL += string(ext.Value) + "/"
+		}
+		// HwID
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.4") {
+			hwid = hex.EncodeToString(ext.Value) + "?"
+		}
+		// blSPL
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.1") {
+			bl = fmt.Sprintf("blSPL=%d", ext.Value[2])
+			tcbValues[0] = ext.Value[2]
+		}
+		// teeSPL
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.2") {
+			tee = fmt.Sprintf("teeSPL=%d&", ext.Value[2])
+			tcbValues[1] = ext.Value[2]
+		}
+		// spl_4
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.4") {
+			tcbValues[2] = ext.Value[2]
+		}
+		// spl_5
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.5") {
+			tcbValues[3] = ext.Value[2]
+		}
+		// spl_6
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.6") {
+			tcbValues[4] = ext.Value[2]
+		}
+		// spl_7
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.7") {
+			tcbValues[5] = ext.Value[2]
+		}
+		// snpSPL
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.3") {
+			snp = fmt.Sprintf("snpSPL=%d&", ext.Value[2])
+			tcbValues[6] = ext.Value[2]
+		}
+		// ucodeSPL
+		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.8") {
+			ucode = fmt.Sprintf("ucodeSPL=%d&", ext.Value[2])
+			tcbValues[7] = ext.Value[2]
+		}
+	}
+	u.RemoteTHIMServiceURL += hwid + ucode + snp + tee + bl
+
+	return binary.LittleEndian.Uint64(tcbValues), nil
+}
+
+// format of the json provided to the UVM by hcsshim. Comes from the THIM endpoint
 // and is a base64 encoded json string
 
 type THIMCerts struct {
@@ -65,11 +184,14 @@ func THIMtoPEM(encodedHostCertsFromTHIM string) (string, error) {
 	return certsString, nil
 }
 
-func GetUvmInfomation() (UvmInformation, error) {
+func GetUvmInformation() (UvmInformation, error) {
 	var encodedUvmInformation UvmInformation
+	encodedUvmInformation.RemoteTHIMServiceURL = os.Getenv("UVM_THIM_SERVICE_URL") + "/vcek/v1/"
+
 	encodedHostCertsFromTHIM := os.Getenv("UVM_HOST_AMD_CERTIFICATE")
 
 	if GenerateTestData {
+		ioutil.WriteFile("uvm_thim_service_url.base64", []byte(encodedUvmInformation.RemoteTHIMServiceURL), 0644)
 		ioutil.WriteFile("uvm_host_amd_certificate.base64", []byte(encodedHostCertsFromTHIM), 0644)
 	}
 
