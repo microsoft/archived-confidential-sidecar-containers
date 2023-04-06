@@ -355,7 +355,7 @@ func MountAzureFilesystems(tempDir string, info RemoteFilesystemsInformation) (e
 	Identity = info.AzureInfo.Identity
 
 	// Retrieve the incoming encoded security policy, cert and uvm endorsement
-	EncodedUvmInformation, err = common.GetUvmInfomation()
+	EncodedUvmInformation, err = common.GetUvmInformation()
 	if err != nil {
 		logrus.Fatalf("Failed to extract UVM_* environment variables: %s", err.Error())
 	}
