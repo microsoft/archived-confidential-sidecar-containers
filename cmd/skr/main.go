@@ -226,7 +226,7 @@ func setupServer(certCache attest.CertCache, identity common.Identity) *gin.Engi
 	// the certificate chain endording the signing key of the hardware attestation.
 	// Hence, these APIs are exposed only if the platform certificate information
 	// has been provided at startup time.
-	if ServerCertCache.Endpoint != "" {
+	if ServerCertCache.Endpoint != "" || EncodedUvmInformation.CertChain != "" {
 		r.POST("/attest/maa", postMAAAttest)
 		r.POST("/key/release", postKeyRelease)
 	}

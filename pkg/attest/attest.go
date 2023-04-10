@@ -88,7 +88,7 @@ func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformatio
 	var vcekCertChain []byte
 	thimTcbm, err := strconv.ParseUint(uvmInformation.ThimCerts.Tcbm, 10, 64)
 	if err != nil {
-		return "", errors.Wrap(err, "converting TCBM string to uint64 failed")
+		return "", errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
 	}
 	if SNPReport.ReportedTCB != thimTcbm {
 		vcekCertChain, thimCerts, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)

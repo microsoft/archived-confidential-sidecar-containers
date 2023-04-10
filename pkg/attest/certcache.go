@@ -32,6 +32,13 @@ const (
 	AmdTHIMRequestURITemplate        = "https://%s/vcek/v1/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 )
 
+const (
+	BlSplTcbmByteIndex    = 0
+	TeeSplTcbmByteIndex   = 1
+	SnpSplTcbmByteIndex   = 6
+	UcodeSplTcbmByteIndex = 7
+)
+
 // CertCache contains information about the certificate cache service
 // that provides access to the certificate chain required upon attestation
 type CertCache struct {
@@ -56,7 +63,7 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 
 	if certCache.AMD {
 		// AMD cert cache endpoint returns the VCEK certificate in DER format
-		uri = fmt.Sprintf(AmdVCEKRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[7], reportedTCBBytes[6], reportedTCBBytes[1], reportedTCBBytes[0])
+		uri = fmt.Sprintf(AmdVCEKRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[UcodeSplTcbmByteIndex], reportedTCBBytes[SnpSplTcbmByteIndex], reportedTCBBytes[TeeSplTcbmByteIndex], reportedTCBBytes[BlSplTcbmByteIndex])
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
 			return nil, thimCerts, errors.Wrapf(err, "certcache http get request failed")
@@ -80,15 +87,13 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		}
 
 		// constuct full chain by appending the VCEK cert to the cert chain
-		var fullCertChain []byte
-		fullCertChain = append(fullCertChain, vcekPEMBytes[:]...)
-		fullCertChain = append(fullCertChain, certChainPEMBytes[:]...)
+		fullCertChain := append(vcekPEMBytes, certChainPEMBytes[:]...)
 
 		return fullCertChain, thimCerts, nil
 	} else if certCache.THIM {
 		// AMD THIM cert cache endpoint returns THIM Certs object
 		// Is TEEType the same as productName in this case or should I add a field for that?
-		uri = fmt.Sprintf(AmdTHIMRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[7], reportedTCBBytes[6], reportedTCBBytes[1], reportedTCBBytes[0])
+		uri = fmt.Sprintf(AmdTHIMRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[UcodeSplTcbmByteIndex], reportedTCBBytes[SnpSplTcbmByteIndex], reportedTCBBytes[TeeSplTcbmByteIndex], reportedTCBBytes[BlSplTcbmByteIndex])
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
 			return nil, thimCerts, errors.Wrapf(err, "certcache http get request failed")
@@ -104,9 +109,7 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		}
 
 		// constuct full chain by appending the VCEK cert to the cert chain
-		var fullCertChain []byte
-		fullCertChain = append(fullCertChain, []byte(thimCerts.VcekCert)[:]...)
-		fullCertChain = append(fullCertChain, []byte(thimCerts.CertificateChain)[:]...)
+		fullCertChain := append([]byte(thimCerts.VcekCert), []byte(thimCerts.CertificateChain)...)
 		return fullCertChain, thimCerts, nil
 	} else {
 		uri = fmt.Sprintf(AzureCertCacheRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, strconv.FormatUint(reportedTCB, 16), certCache.APIVersion)
