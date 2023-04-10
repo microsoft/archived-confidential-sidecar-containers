@@ -6,6 +6,7 @@ package attest
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"strconv"
 
 	"io/ioutil"
 	"os"
@@ -47,7 +48,7 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 // (E) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
 //
 //	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
-func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
+func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
 	// Fetch the attestation report
 
 	// check if sev device exists on the platform; if not fetch fake snp report
@@ -82,34 +83,23 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 		return "", errors.Wrapf(err, "failed to deserialize attestation report")
 	}
 
-	// check that the TCB of the cert chain matches that reported so we fail early or
-	// fetch certs again if the TCB has changed
-	var vcekTCBVersion uint64
-	vcekTCBVersion, err = uvmInformation.ParseVCEK()
+	// At this point check that the TCB of the cert chain matches that reported so we fail early or
+	// fetch fresh certs by other means.
+	var vcekCertChain []byte
+	thimTcbm, err := strconv.ParseUint(uvmInformation.ThimCerts.Tcbm, 10, 64)
 	if err != nil {
-		return "", errors.Wrap(err, "parsing VCEK failed")
+		return "", errors.Wrap(err, "converting TCBM string to uint64 failed")
 	}
-	// If the VCEK TCB version does not match the attestation report ReportedTCB
-	if vcekTCBVersion != SNPReport.ReportedTCB {
-		// Clear the cached CertChain
-		uvmInformation.CertChain = ""
-		// RefreshVCEK
-		err = uvmInformation.RefreshVCEK()
+	if SNPReport.ReportedTCB != thimTcbm {
+		vcekCertChain, thimCerts, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
 		if err != nil {
-			return "", errors.Wrap(err, "refreshing VCEK failed")
+			return "", errors.Wrap(err, "refreshing CertChain failed")
 		}
-		// do the comparison again
-		vcekTCBVersion, err = uvmInformation.ParseVCEK()
-		if err != nil {
-			return "", errors.Wrap(err, "parsing VCEK failed on retry")
-		}
-		// If the refresh does not work, fail
-		if vcekTCBVersion != SNPReport.ReportedTCB {
-			return "", errors.Wrap(err, "VCEK TCB version does not match the attestation report ReportedTCB")
-		}
+		uvmInformation.CertChain = string(vcekCertChain)
+		uvmInformation.ThimCerts = thimCerts
+	} else {
+		vcekCertChain = []byte(uvmInformation.CertChain)
 	}
-
-	vcekCertChain := []byte(uvmInformation.CertChain)
 
 	/* TODO: to support use outside of Azure add code to fetch the AMD certs here */
 
