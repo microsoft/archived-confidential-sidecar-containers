@@ -13,6 +13,7 @@ import (
 
 	"crypto/x509"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"strings"
 
@@ -26,13 +27,27 @@ import (
 
 const GenerateTestData = false
 
+// can't find any documentation on why the 3rd byte of the Certificate.Extensions byte array is the one that matters
+// all the byte arrays for the tcb values are of length 3 and fit the format [2 1 IMPORTANT_VALUE]
+const x509CertExtensionsValuePos = 2
+
+// TCB byte array index values
+const TcbBlSpl = 0
+const TcbTeeSpl = 1
+const TcbSpl_4 = 2
+const TcbSpl_5 = 3
+const TcbSpl_6 = 4
+const TcbSpl_7 = 5
+const TcbSnpSpl = 6
+const TcbUcodeSpl = 7
+
 // Information supplied by the UVM specific to running Pod
 
 type UvmInformation struct {
-	EncodedSecurityPolicy   string // customer security policy
-	CertChain               string // platform certificates for the actual physical host, ascii PEM
-	EncodedUvmReferenceInfo string // endorsements for the particular UVM image
-	RemoteTHIMServiceURL    string `json:",omitempty"` // URL where the remote THIM service is found
+	EncodedSecurityPolicy   string   // customer security policy
+	CertChain               string   // platform certificates for the actual physical host, ascii PEM
+	EncodedUvmReferenceInfo string   // endorsements for the particular UVM image
+	RemoteTHIMServiceURL    *url.URL `json:",omitempty"` // URL where the remote THIM service is found
 }
 
 // returns the cached VCEK certificates (CertChain)
@@ -49,7 +64,7 @@ func (u *UvmInformation) GetVCEK() string {
 
 // fetches new VCEK certificates from the remote THIM endpoint
 func (u *UvmInformation) RefreshVCEK() error {
-	resp, err := HTTPGetRequest(u.RemoteTHIMServiceURL, false)
+	resp, err := HTTPGetRequest(u.RemoteTHIMServiceURL.String(), false)
 	if err != nil {
 		logrus.Errorf("Error fetching remote VCEK cert: %v", err)
 		return err
@@ -94,12 +109,14 @@ func (u *UvmInformation) ParseVCEK() ( /*tcbVersion*/ uint64, error) {
 	}
 
 	tcbValues := make([]byte, 8) // TCB version is 8 bytes
-	var hwid, ucode, bl, tee, snp string
+	v := url.Values{}
+	var hwid string //, ucode, bl, tee, snp string
 	// parse extensions to update the THIM URL and get TCB Version
 	for _, ext := range vcekCert.Extensions {
+		fmt.Println(ext.Value)
 		// productName
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.2") {
-			u.RemoteTHIMServiceURL += string(ext.Value) + "/"
+			u.RemoteTHIMServiceURL.Path += string(ext.Value) + "/"
 		}
 		// HwID
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.4") {
@@ -107,42 +124,50 @@ func (u *UvmInformation) ParseVCEK() ( /*tcbVersion*/ uint64, error) {
 		}
 		// blSPL
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.1") {
-			bl = fmt.Sprintf("blSPL=%d", ext.Value[2])
-			tcbValues[0] = ext.Value[2]
+			//bl = fmt.Sprintf("blSPL=%d", ext.Value[2])
+			v.Set("blSPL", fmt.Sprintf("%d", ext.Value[x509CertExtensionsValuePos]))
+			tcbValues[TcbBlSpl] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// teeSPL
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.2") {
-			tee = fmt.Sprintf("teeSPL=%d&", ext.Value[2])
-			tcbValues[1] = ext.Value[2]
+			//tee = fmt.Sprintf("teeSPL=%d&", ext.Value[2])
+			v.Set("teeSPL", fmt.Sprintf("%d", ext.Value[x509CertExtensionsValuePos]))
+			tcbValues[TcbTeeSpl] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// spl_4
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.4") {
-			tcbValues[2] = ext.Value[2]
+			tcbValues[TcbSpl_4] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// spl_5
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.5") {
-			tcbValues[3] = ext.Value[2]
+			tcbValues[TcbSpl_5] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// spl_6
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.6") {
-			tcbValues[4] = ext.Value[2]
+			tcbValues[TcbSpl_6] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// spl_7
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.7") {
-			tcbValues[5] = ext.Value[2]
+			tcbValues[TcbSpl_7] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// snpSPL
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.3") {
-			snp = fmt.Sprintf("snpSPL=%d&", ext.Value[2])
-			tcbValues[6] = ext.Value[2]
+			//snp = fmt.Sprintf("snpSPL=%d&", ext.Value[2])
+			v.Set("snpSPL", fmt.Sprintf("%d", ext.Value[x509CertExtensionsValuePos]))
+			tcbValues[TcbSnpSpl] = ext.Value[x509CertExtensionsValuePos]
 		}
 		// ucodeSPL
 		if strings.Contains(ext.Id.String(), "1.3.6.1.4.1.3704.1.3.8") {
-			ucode = fmt.Sprintf("ucodeSPL=%d&", ext.Value[2])
-			tcbValues[7] = ext.Value[2]
+			//ucode = fmt.Sprintf("ucodeSPL=%d&", ext.Value[2])
+			v.Set("ucodeSPL", fmt.Sprintf("%d", ext.Value[x509CertExtensionsValuePos]))
+			tcbValues[TcbUcodeSpl] = ext.Value[x509CertExtensionsValuePos]
 		}
 	}
-	u.RemoteTHIMServiceURL += hwid + ucode + snp + tee + bl
+	u.RemoteTHIMServiceURL.Path += hwid
+	u.RemoteTHIMServiceURL.RawQuery = v.Encode()
+	// getting the string value ends up looking like: https://americas.test.acccache.azure.net/vcek/v1/%16%08Milan-A0/e6c86796cd44b0bc6b7c0d4fdab33e2807e14b5fc4538b3750921169d97bcf4447c7d3ab2a7c25f74c1641e2885c1011d025cc536f5c9a2504713136c7877f48%3F?blSPL=0&snpSPL=0&teeSPL=0&ucodeSPL=49
+	// it has the correct parameters, but the additional %16, %3F etc. addeded to the path values are not part of the path when you print it separately
+	// fmt.Println(u.RemoteTHIMServiceURL.String())
 
 	return binary.LittleEndian.Uint64(tcbValues), nil
 }
@@ -186,17 +211,19 @@ func THIMtoPEM(encodedHostCertsFromTHIM string) (string, error) {
 
 func GetUvmInformation() (UvmInformation, error) {
 	var encodedUvmInformation UvmInformation
-	encodedUvmInformation.RemoteTHIMServiceURL = os.Getenv("UVM_THIM_SERVICE_URL") + "/vcek/v1/"
+	var err error
+	encodedUvmInformation.RemoteTHIMServiceURL, err = url.Parse(os.Getenv("UVM_THIM_SERVICE_URL") + "/vcek/v1/")
 
 	encodedHostCertsFromTHIM := os.Getenv("UVM_HOST_AMD_CERTIFICATE")
 
 	if GenerateTestData {
-		ioutil.WriteFile("uvm_thim_service_url.base64", []byte(encodedUvmInformation.RemoteTHIMServiceURL), 0644)
+		ioutil.WriteFile("uvm_thim_service_url.base64", []byte(encodedUvmInformation.RemoteTHIMServiceURL.String()), 0644)
 		ioutil.WriteFile("uvm_host_amd_certificate.base64", []byte(encodedHostCertsFromTHIM), 0644)
 	}
 
 	if encodedHostCertsFromTHIM != "" {
-		certChain, err := THIMtoPEM(encodedHostCertsFromTHIM)
+		var certChain string
+		certChain, err = THIMtoPEM(encodedHostCertsFromTHIM)
 		if err != nil {
 			return encodedUvmInformation, err
 		}
