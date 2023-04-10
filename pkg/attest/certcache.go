@@ -112,11 +112,11 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		uri = fmt.Sprintf(AzureCertCacheRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, strconv.FormatUint(reportedTCB, 16), certCache.APIVersion)
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
-			return nil, thimCerts, errors.Wrapf(err, "certcache http get request failed")
+			return nil, thimCerts, err
 		}
 		certChain, err := common.HTTPResponseBody(httpResponse)
 		if err != nil {
-			return nil, thimCerts, errors.Wrapf(err, "certcache http read response failed")
+			return nil, thimCerts, err
 		}
 		return certChain, thimCerts, nil
 	}
