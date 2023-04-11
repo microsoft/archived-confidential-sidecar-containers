@@ -86,17 +86,17 @@ func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformatio
 	// At this point check that the TCB of the cert chain matches that reported so we fail early or
 	// fetch fresh certs by other means.
 	var vcekCertChain []byte
-	thimTcbm, err := strconv.ParseUint(uvmInformation.ThimCerts.Tcbm, 10, 64)
+	thimTcbm, err := strconv.ParseUint(uvmInformation.ThimTcbm, 10, 64)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
 	}
 	if SNPReport.ReportedTCB != thimTcbm {
-		vcekCertChain, thimCerts, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
+		vcekCertChain, thimTcbm, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
 		if err != nil {
 			return "", errors.Wrap(err, "refreshing CertChain failed")
 		}
 		uvmInformation.CertChain = string(vcekCertChain)
-		uvmInformation.ThimCerts = thimCerts
+		uvmInformation.ThimTcbm = thimTcbm
 	} else {
 		vcekCertChain = []byte(uvmInformation.CertChain)
 	}

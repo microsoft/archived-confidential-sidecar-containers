@@ -21,10 +21,10 @@ import (
 const GenerateTestData = false
 
 type UvmInformation struct {
-	EncodedSecurityPolicy   string    // customer security policy
-	CertChain               string    // platform certificates for the actual physical host, ascii PEM
-	EncodedUvmReferenceInfo string    // endorsements for the particular UVM image
-	ThimCerts               THIMCerts // THIM Certs for the particular UVM image
+	EncodedSecurityPolicy   string // customer security policy
+	CertChain               string // platform certificates for the actual physical host, ascii PEM
+	EncodedUvmReferenceInfo string // endorsements for the particular UVM image
+	ThimTcbm                string // TCBM for the particular UVM image
 }
 
 // format of the json provided to the UVM by hcsshim. Comes from the THIM endpoint
@@ -36,23 +36,31 @@ type THIMCerts struct {
 	CacheControl     string `json:"cacheControl"`
 }
 
-func THIMtoPEM(encodedHostCertsFromTHIM string) (THIMCerts, error) {
-	var certsFromTHIM THIMCerts
+func THIMtoPEM(encodedHostCertsFromTHIM string) (string, string, error) {
 	hostCertsFromTHIM, err := base64.StdEncoding.DecodeString(encodedHostCertsFromTHIM)
 	if err != nil {
-		return certsFromTHIM, errors.Wrapf(err, "base64 decoding platform certs failed")
+		return "", "", errors.Wrapf(err, "base64 decoding platform certs failed")
 	}
 
 	if GenerateTestData {
 		ioutil.WriteFile("uvm_host_amd_certificate.json", hostCertsFromTHIM, 0644)
 	}
 
+	var certsFromTHIM THIMCerts
 	err = json.Unmarshal(hostCertsFromTHIM, &certsFromTHIM)
 	if err != nil {
-		return certsFromTHIM, errors.Wrapf(err, "json unmarshal platform certs failed")
+		return "", "", errors.Wrapf(err, "json unmarshal platform certs failed")
 	}
 
-	return certsFromTHIM, nil
+	certsString := certsFromTHIM.VcekCert + certsFromTHIM.CertificateChain
+
+	if GenerateTestData {
+		ioutil.WriteFile("uvm_host_amd_certificate.pem", []byte(certsString), 0644)
+	}
+
+	logrus.Debugf("certsFromTHIM:\n\n%s\n\n", certsString)
+
+	return certsString, certsFromTHIM.Tcbm, nil
 }
 
 func GetUvmInformation() (UvmInformation, error) {
@@ -65,19 +73,12 @@ func GetUvmInformation() (UvmInformation, error) {
 	}
 
 	if encodedHostCertsFromTHIM != "" {
-		certsFromTHIM, err := THIMtoPEM(encodedHostCertsFromTHIM)
+		certsFromTHIM, tcbmFromTHIM, err := THIMtoPEM(encodedHostCertsFromTHIM)
 		if err != nil {
 			return encodedUvmInformation, err
 		}
-		encodedUvmInformation.ThimCerts = certsFromTHIM
-		certsString := certsFromTHIM.VcekCert + certsFromTHIM.CertificateChain
-
-		if GenerateTestData {
-			ioutil.WriteFile("uvm_host_amd_certificate.pem", []byte(certsString), 0644)
-		}
-
-		logrus.Debugf("certsFromTHIM:\n\n%s\n\n", certsString)
-		encodedUvmInformation.CertChain = certsString
+		encodedUvmInformation.ThimTcbm = tcbmFromTHIM
+		encodedUvmInformation.CertChain = certsFromTHIM
 	}
 	encodedUvmInformation.EncodedSecurityPolicy = os.Getenv("UVM_SECURITY_POLICY")
 	encodedUvmInformation.EncodedUvmReferenceInfo = os.Getenv("UVM_REFERENCE_INFO")
