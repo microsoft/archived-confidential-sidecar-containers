@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
+	"strconv"
 
 	"os"
 
@@ -24,7 +25,7 @@ type UvmInformation struct {
 	EncodedSecurityPolicy   string // customer security policy
 	CertChain               string // platform certificates for the actual physical host, ascii PEM
 	EncodedUvmReferenceInfo string // endorsements for the particular UVM image
-	ThimTcbm                string // TCBM for the particular UVM image
+	ThimTcbm                uint64 // TCBM for the particular UVM image
 }
 
 // format of the json provided to the UVM by hcsshim. Comes from the THIM endpoint
@@ -77,7 +78,11 @@ func GetUvmInformation() (UvmInformation, error) {
 		if err != nil {
 			return encodedUvmInformation, err
 		}
-		encodedUvmInformation.ThimTcbm = tcbmFromTHIM
+		thimTcbm, err := strconv.ParseUint(tcbmFromTHIM, 10, 64)
+		if err != nil {
+			return encodedUvmInformation, errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
+		}
+		encodedUvmInformation.ThimTcbm = thimTcbm
 		encodedUvmInformation.CertChain = certsFromTHIM
 	}
 	encodedUvmInformation.EncodedSecurityPolicy = os.Getenv("UVM_SECURITY_POLICY")

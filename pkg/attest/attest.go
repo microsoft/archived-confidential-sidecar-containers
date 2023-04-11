@@ -16,6 +16,34 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byte, error) {
+	// check if sev device exists on the platform; if not fetch fake snp report
+	var fetchRealSNPReport bool
+	if _, err := os.Stat("/dev/sev"); os.IsNotExist(err) {
+		fetchRealSNPReport = false
+	} else {
+		fetchRealSNPReport = true
+	}
+
+	inittimeDataBytes, err := base64.StdEncoding.DecodeString(securityPolicy)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "decoding policy from Base64 format failed")
+	}
+	logrus.Debugf("   inittimeDataBytes:    %v", inittimeDataBytes)
+
+	SNPReportBytes, err := FetchSNPReport(fetchRealSNPReport, runtimeDataBytes, inittimeDataBytes)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "fetching snp report failed")
+	}
+
+	if common.GenerateTestData {
+		ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
+	}
+
+	logrus.Debugf("   SNPReportBytes:    %v", SNPReportBytes)
+	return SNPReportBytes, inittimeDataBytes, nil
+}
+
 // RawAttest returns the raw attestation report in hex string format
 func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error) {
 	// check if sev device exists on the platform; if not fetch fake snp report
@@ -50,56 +78,53 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 //	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
 func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
 	// Fetch the attestation report
-
-	// check if sev device exists on the platform; if not fetch fake snp report
-	var fetchRealSNPReport bool
-	if _, err := os.Stat("/dev/sev"); os.IsNotExist(err) {
-		fetchRealSNPReport = false
-	} else {
-		fetchRealSNPReport = true
-	}
-
-	inittimeDataBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedSecurityPolicy)
+	SNPReportBytes, inittimeDataBytes, err := GetSNPReport(uvmInformation.EncodedSecurityPolicy, runtimeDataBytes)
 	if err != nil {
-		return "", errors.Wrap(err, "decoding policy from Base64 format failed")
+		return "", errors.Wrapf(err, "failed to retrieve attestation report")
 	}
-	logrus.Debugf("   inittimeDataBytes:    %v", inittimeDataBytes)
-
-	SNPReportBytes, err := FetchSNPReport(fetchRealSNPReport, runtimeDataBytes, inittimeDataBytes)
-	if err != nil {
-		return "", errors.Wrapf(err, "fetching snp report failed")
-	}
-
-	if common.GenerateTestData {
-		ioutil.WriteFile("snp_report.bin", SNPReportBytes, 0644)
-	}
-
-	logrus.Debugf("   SNPReportBytes:    %v", SNPReportBytes)
 
 	// Retrieve the certificate chain using the chip identifier and platform version
 	// fields of the attestation report
 	var SNPReport SNPAttestationReport
-	if err := SNPReport.DeserializeReport(SNPReportBytes); err != nil {
+	if err = SNPReport.DeserializeReport(SNPReportBytes); err != nil {
 		return "", errors.Wrapf(err, "failed to deserialize attestation report")
 	}
 
 	// At this point check that the TCB of the cert chain matches that reported so we fail early or
 	// fetch fresh certs by other means.
 	var vcekCertChain []byte
-	thimTcbm, err := strconv.ParseUint(uvmInformation.ThimTcbm, 10, 64)
-	if err != nil {
-		return "", errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
-	}
-	if SNPReport.ReportedTCB != thimTcbm {
-		vcekCertChain, thimTcbm, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
+	if SNPReport.ReportedTCB != uvmInformation.ThimTcbm {
+		// TCB values not the same, try refreshing cert cache first
+		vcekCertChain, thimTcbmStr, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
 		if err != nil {
 			return "", errors.Wrap(err, "refreshing CertChain failed")
 		}
 		uvmInformation.CertChain = string(vcekCertChain)
+		thimTcbm, err := strconv.ParseUint(thimTcbmStr, 10, 64)
+		if err != nil {
+			return "", errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
+		}
 		uvmInformation.ThimTcbm = thimTcbm
-	} else {
-		vcekCertChain = []byte(uvmInformation.CertChain)
 	}
+
+	if SNPReport.ReportedTCB != uvmInformation.ThimTcbm {
+		// TCB values still don't match, try retrieving the SNP report again
+		SNPReportBytes, inittimeDataBytes, err = GetSNPReport(uvmInformation.EncodedSecurityPolicy, runtimeDataBytes)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to retrieve new attestation report")
+		}
+
+		var SNPReport SNPAttestationReport
+		if err = SNPReport.DeserializeReport(SNPReportBytes); err != nil {
+			return "", errors.Wrapf(err, "failed to deserialize new attestation report")
+		}
+		// if no match after refreshing certs and attestation report, fail
+		if SNPReport.ReportedTCB != uvmInformation.ThimTcbm {
+			return "", errors.New("SNP reported TCB value doesn't match Certificate TCB values")
+		}
+	}
+
+	vcekCertChain = []byte(uvmInformation.CertChain)
 
 	/* TODO: to support use outside of Azure add code to fetch the AMD certs here */
 

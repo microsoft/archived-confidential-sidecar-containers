@@ -29,7 +29,8 @@ const (
 	AzureCertCacheRequestURITemplate = "https://%s/%s/certificates/%s/%s?%s"
 	AmdVCEKRequestURITemplate        = "https://%s/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 	AmdCertChainRequestURITemplate   = "https://%s/%s/cert_chain"
-	AmdTHIMRequestURITemplate        = "https://%s/vcek/v1/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
+	LocalTHIMCertEndpoint            = "http://169.254.169.254/metadata/THIM/amd/certification"
+	//AmdTHIMRequestURITemplate        = "https://%s/vcek/v1/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 )
 
 const (
@@ -89,9 +90,8 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 
 		return fullCertChain, "", nil
 	} else if certCache.THIM {
-		// AMD THIM cert cache endpoint returns THIM Certs object
-		// Is TEEType the same as productName in this case or should I add a field for that?
-		uri = fmt.Sprintf(AmdTHIMRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[UcodeSplTcbmByteIndex], reportedTCBBytes[SnpSplTcbmByteIndex], reportedTCBBytes[TeeSplTcbmByteIndex], reportedTCBBytes[BlSplTcbmByteIndex])
+		// local THIM cert cache endpoint returns THIM Certs object
+		uri = LocalTHIMCertEndpoint
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "certcache http get request failed")
