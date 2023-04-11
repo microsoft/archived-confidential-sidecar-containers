@@ -156,12 +156,12 @@ func GetUvmInfomationFromFiles() (UvmInformation, error) {
 
 	encodedUvmInformation.EncodedSecurityPolicy, err = readSecurityContextFile(securityContextDir, PolicyFilename)
 	if err != nil {
-		return encodedUvmInformation, errors.Wrapf(err, "reading host amd cert failed")
+		return encodedUvmInformation, errors.Wrapf(err, "reading security policy failed")
 	}
 
 	encodedUvmInformation.EncodedUvmReferenceInfo, err = readSecurityContextFile(securityContextDir, ReferenceInfoFilename)
 	if err != nil {
-		return encodedUvmInformation, errors.Wrapf(err, "reading host amd cert failed")
+		return encodedUvmInformation, errors.Wrapf(err, "reading uvm reference info failed")
 	}
 
 	if GenerateTestData {
