@@ -36,5 +36,5 @@ func main() {
 	h := sha256.New()
 	h.Write(inittimeDataBytes)
 
-	fmt.Printf("inittimeData sha-256 digest %x", h.Sum(nil))
+	fmt.Printf("\ninittimeData sha-256 digest %x", h.Sum(nil))
 }

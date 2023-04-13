@@ -61,7 +61,7 @@ Or you can use the following command if you know the name of the managed identit
 az identity show -g <RESOURCE GROUP> -n <MANAGED IDENTITY NAME>
 ```
 
-Replace ["<managed-identity-with-right-permissions-to-key-vault>"](aci-arm-template.json#:~:text=%22%3Cmanaged%2Didentity%2Dwith%2Dright%2Dpermissions%2Dto%2Dkey%2Dvault%3E%22) of `aci-arm-template.json` with the identity ID.
+Replace [managed-identity-with-right-permissions-to-key-vault](aci-arm-template.json#:~:text=%22%3Cmanaged%2Didentity%2Dwith%2Dright%2Dpermissions%2Dto%2Dkey%2Dvault%3E%22) of `aci-arm-template.json` with the identity ID.
 
 
 #### 3. Populate Image Registry Credentials
@@ -77,17 +77,14 @@ The AAD token with permission to AKV/mHSM can be obtained with the following com
 az account get-access-token --resource https://managedhsm.azure.net
 ```
 
-Replace [AAD token](importkeyconfig.json#L11) in `importkeyconfig.json` and [SkrClientAKVEndpoint](aci-arm-template.json#L60) in `aci-arm-template.json` with the output accessToken. If using mHSM instead of AKV, replace ["akv"](importkeyconfig.json#L8) with `mhsm` in `importkeyconfig.json`.
+Replace [AAD token](importkeyconfig.json#L11) in `importkeyconfig.json` and [SkrClientAKVEndpoint](aci-arm-template.json#L60) in `aci-arm-template.json` with the output accessToken.
 
 
 #### 5. Fill in Key Information
 
-After setting up an [Azure Key Vault resource](#import-key), fill in the `keyimportconfig.json` file with the following information about the key to be imported into the key vault: 
+After setting up an [Azure Key Vault resource](#import-key), fill in the `importkeyconfig.json` file with the name of the key to be created and imported into the key vault [Key name](importkeyconfig.json#L3).
 
-[Key name](importkeyconfig.json#L3)<br />
-[Key type: `RSA-HSM` or `oct-HSM`](importkeyconfig.json#L4)<br />
-
-Additionally, fill in the optional [key derivation field](importkeyconfig.json#L14) for RSA keys or remove this field from the `importkeyconfig.json` file.
+Additionally, fill in the optional [key derivation](importkeyconfig.json#L14) for RSA keys and [Key type: `RSA-HSM` or `oct-HSM`](importkeyconfig.json#L4) fields or remove these fields from the `importkeyconfig.json` file.
 
 Copy the key name into [SkrClientKID](aci-arm-template.json#L64) in the `aci-arm-template.json`.
 
@@ -131,7 +128,7 @@ Once the key vault resource is ready and the `importkeyconfig.json` file is comp
 A fake encryption key is used in the command below to see the key get released. To import the key into AKV/mHSM, use the following command:
 
 ```
-go run /tools/importkey/main.go -c keyimportconfig.json -kh encryptionKey
+go run /tools/importkey/main.go -c importkeyconfig.json -kh encryptionKey
 ```
 
 Upon successful import completion, you should see something similar to the following: 
