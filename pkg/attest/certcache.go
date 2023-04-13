@@ -20,17 +20,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Set to true to regenerate test files at every request.
-// Also useful to debug the various steps, especially encoding
-// to the correct base64url encoding.
-const GenerateTestData = false
-
 const (
 	AzureCertCacheRequestURITemplate = "https://%s/%s/certificates/%s/%s?%s"
 	AmdVCEKRequestURITemplate        = "https://%s/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 	AmdCertChainRequestURITemplate   = "https://%s/%s/cert_chain"
 	LocalTHIMCertEndpoint            = "http://169.254.169.254/metadata/THIM/amd/certification"
-	//AmdTHIMRequestURITemplate        = "https://%s/vcek/v1/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 )
 
 const (
@@ -44,7 +38,6 @@ const (
 // that provides access to the certificate chain required upon attestation
 type CertCache struct {
 	AMD        bool   `json:"amd,omitempty"`
-	THIM       bool   `json:"thim,omitempty"`
 	Endpoint   string `json:"endpoint"`
 	TEEType    string `json:"tee_type,omitempty"`
 	APIVersion string `json:"api_version,omitempty"`
@@ -89,7 +82,7 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		fullCertChain := append(vcekPEMBytes, certChainPEMBytes[:]...)
 
 		return fullCertChain, "", nil
-	} else if certCache.THIM {
+	} else if certCache.TEEType == "LocalTHIM" {
 		// local THIM cert cache endpoint returns THIM Certs object
 		uri = LocalTHIMCertEndpoint
 		httpResponse, err := common.HTTPGetRequest(uri, false)
