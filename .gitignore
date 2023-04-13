@@ -1,2 +1,7 @@
 /azmount
 /remotefs
+
+/bin
+/docker/skr/bin
+/tools/get-snp-report/*
+/tools/get-snp-report/bin/*
