@@ -32,15 +32,15 @@ Here is an example of running skr sidecar on confidential ACI. The MAA endpoint 
 The managed HSM instance endpoint corresponds to [`SkrClientAKVEndpoint`](aci-arm-template.json?plain=1#L59). We will also import a key into managed HSM under the name [`doc-sample-key-release`](aci-arm-template.json?plain=1#L64)
 
 
-#### 1. Obtain Microsoft Azure Attestation Endpoint
+#### 1. Obtain an Attestation Endpoint
 
-Create a [Microsoft Azure Attestation](https://learn.microsoft.com/en-us/azure/attestation/overview) endpoint to author the attestation token and run the following command to get the endpoint value:
+If you don't already have a valid attestation endpoint, create a [Microsoft Azure Attestation](https://learn.microsoft.com/en-us/azure/attestation/overview) endpoint to author the attestation token and run the following command to get the endpoint value:
 
 ```
 az attestation show --name "<ATTESTATION PROVIDER NAME>" --resource-group "<RESOURCE GROUP>"
 ```
 
-Copy the AttestURI endpoint value (sans https://) to the [MAA endpoint](importkeyconfig.json#L6) in `importkeyconfig.json` and to [SkrClientMAAEndpoint](aci-arm-template.json#L56) and [AttestClientMAAEndpoint](aci-arm-template.json#L106) in `aci-arm-template.json`.
+Copy the AttestURI endpoint value (sans https://) to the [Attestation Authority endpoint](importkeyconfig.json#L6) in `importkeyconfig.json` and to [SkrClientMAAEndpoint](aci-arm-template.json#L56) and [AttestClientMAAEndpoint](aci-arm-template.json#L106) in `aci-arm-template.json`.
 
 
 #### 2. Generate User Managed Identity 

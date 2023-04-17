@@ -24,7 +24,6 @@ const (
 	AzureCertCacheRequestURITemplate = "https://%s/%s/certificates/%s/%s?%s"
 	AmdVCEKRequestURITemplate        = "https://%s/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 	AmdCertChainRequestURITemplate   = "https://%s/%s/cert_chain"
-	LocalTHIMCertEndpoint            = "http://169.254.169.254/metadata/THIM/amd/certification"
 )
 
 const (
@@ -46,9 +45,12 @@ type CertCache struct {
 // retrieveCertChain interacts with the cert cache service to fetch the cert chain of the
 // chip identified by chipId running firmware identified by reportedTCB. These attributes
 // are retrived from the attestation report.
-func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) ([]byte, string, error) {
+// Returns the cert chain as a bytes array, the TCBM from the local THIM cert cache is as a string
+// (only in the case of a local THIM endpoint), and any errors encountered
+func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64, localThimUri string) ([]byte, uint64, error) {
 	// HTTP GET request to cert cache service
 	var uri string
+	var thimTcbm uint64
 
 	reportedTCBBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(reportedTCBBytes, reportedTCB)
@@ -58,11 +60,11 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		uri = fmt.Sprintf(AmdVCEKRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[UcodeSplTcbmByteIndex], reportedTCBBytes[SnpSplTcbmByteIndex], reportedTCBBytes[TeeSplTcbmByteIndex], reportedTCBBytes[BlSplTcbmByteIndex])
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "certcache http get request failed")
+			return nil, thimTcbm, errors.Wrapf(err, "certcache http get request failed")
 		}
 		derBytes, err := common.HTTPResponseBody(httpResponse)
 		if err != nil {
-			return nil, "", err
+			return nil, thimTcbm, err
 		}
 		// encode the VCEK cert in PEM format
 		vcekPEMBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
@@ -71,32 +73,31 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		uri = fmt.Sprintf(AmdCertChainRequestURITemplate, certCache.Endpoint, certCache.TEEType)
 		httpResponse, err = common.HTTPGetRequest(uri, false)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "certcache http get request failed")
+			return nil, thimTcbm, errors.Wrapf(err, "certcache http get request failed")
 		}
 		certChainPEMBytes, err := common.HTTPResponseBody(httpResponse)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "pulling certchain response from get request failed")
+			return nil, thimTcbm, errors.Wrapf(err, "pulling certchain response from get request failed")
 		}
 
 		// constuct full chain by appending the VCEK cert to the cert chain
 		fullCertChain := append(vcekPEMBytes, certChainPEMBytes[:]...)
 
-		return fullCertChain, "", nil
-	} else if certCache.TEEType == "LocalTHIM" {
+		return fullCertChain, thimTcbm, nil
+	} else if certCache.TEEType == "LocalTHIM" && localThimUri != "" {
 		// local THIM cert cache endpoint returns THIM Certs object
-		uri = LocalTHIMCertEndpoint
-		httpResponse, err := common.HTTPGetRequest(uri, false)
+		httpResponse, err := common.HTTPGetRequest(localThimUri, false)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "certcache http get request failed")
+			return nil, thimTcbm, errors.Wrapf(err, "certcache http get request failed")
 		}
 		THIMCertsBytes, err := common.HTTPResponseBody(httpResponse)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "pulling certchain response from get request failed")
+			return nil, thimTcbm, errors.Wrapf(err, "pulling certchain response from get request failed")
 		}
 
 		thimCerts, thimTcbm, err := common.THIMtoPEM(string(THIMCertsBytes))
 		if err != nil {
-			return nil, "", err
+			return nil, thimTcbm, err
 		}
 
 		return []byte(thimCerts), thimTcbm, nil
@@ -104,16 +105,16 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		uri = fmt.Sprintf(AzureCertCacheRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, strconv.FormatUint(reportedTCB, 16), certCache.APIVersion)
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
-			return nil, "", err
+			return nil, thimTcbm, err
 		}
 		certChain, err := common.HTTPResponseBody(httpResponse)
 		if err != nil {
-			return nil, "", err
+			return nil, thimTcbm, err
 		}
-		return certChain, "", nil
+		return certChain, thimTcbm, nil
 	}
 }
 
-func (certCache CertCache) GetCertChain(chipID string, reportedTCB uint64) ([]byte, string, error) {
-	return certCache.retrieveCertChain(chipID, reportedTCB)
+func (certCache CertCache) GetCertChain(chipID string, reportedTCB uint64, localThimUri string) ([]byte, uint64, error) {
+	return certCache.retrieveCertChain(chipID, reportedTCB, localThimUri)
 }

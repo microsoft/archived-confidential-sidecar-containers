@@ -6,7 +6,6 @@ package attest
 import (
 	"encoding/base64"
 	"encoding/hex"
-	"strconv"
 
 	"io/ioutil"
 	"os"
@@ -18,11 +17,13 @@ import (
 
 func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byte, error) {
 	// check if sev device exists on the platform; if not fetch fake snp report
-	var fetchRealSNPReport bool
-	if _, err := os.Stat("/dev/sev"); os.IsNotExist(err) {
-		fetchRealSNPReport = false
-	} else {
-		fetchRealSNPReport = true
+	fetchRealSNPReport := true
+	if _, err := os.Stat("/dev/sev"); errors.Is(err, os.ErrNotExist) {
+		// dev/sev doesn't exist, check dev/sev-guest
+		if _, err := os.Stat("/dev/sev-guest"); errors.Is(err, os.ErrNotExist) {
+			// dev/sev-guest doesn't exist
+			fetchRealSNPReport = false
+		}
 	}
 
 	inittimeDataBytes, err := base64.StdEncoding.DecodeString(securityPolicy)
@@ -46,15 +47,11 @@ func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byt
 
 func RefreshCertChain(certCache CertCache, uvmInformation *common.UvmInformation, SNPReport SNPAttestationReport) ([]byte, error) {
 	// TCB values not the same, try refreshing cert cache first
-	vcekCertChain, thimTcbmStr, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
+	vcekCertChain, thimTcbm, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB, uvmInformation.LocalThimUri)
 	if err != nil {
 		return nil, errors.Wrap(err, "refreshing CertChain failed")
 	}
 	uvmInformation.CertChain = string(vcekCertChain)
-	thimTcbm, err := strconv.ParseUint(thimTcbmStr, 10, 64)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
-	}
 	uvmInformation.ThimTcbm = thimTcbm
 	return vcekCertChain, nil
 }
@@ -140,8 +137,6 @@ func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformatio
 	} else {
 		vcekCertChain = []byte(uvmInformation.CertChain)
 	}
-
-	/* TODO: to support use outside of Azure add code to fetch the AMD certs here */
 
 	uvmReferenceInfoBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedUvmReferenceInfo)
 

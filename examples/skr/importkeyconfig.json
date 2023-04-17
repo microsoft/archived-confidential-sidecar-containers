@@ -3,7 +3,7 @@
         "kid": "<key-vault-key-identifier>",
         "kty": "<key-type-of-key-imported-to-akv>",
         "authority": {
-            "endpoint": "<microsoft-azure-attestation-endpoint>"
+            "endpoint": "<attestation-authority-endpoint>"
         },
         "akv": {
             "endpoint": "<key-vault-endpoint>",
