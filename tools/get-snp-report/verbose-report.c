@@ -22,31 +22,24 @@
 // the directory internal/guest/attestation
 
 int main(int argc, char *argv[])
-{
+{    
     bool success = false;
     uint8_t *snp_report_hex;
     const char *report_data_hexstring = "";
 
-    if (argc > 1)
-    {
+    if (argc > 1) {
         report_data_hexstring = argv[1];
     }
 
-    if (supportsDevSev())
-    {
-        success = fetchAttestationReport5(report_data_hexstring, (void *)&snp_report_hex);
-    }
-    else if (supportsDevSevGuest())
-    {
-        success = fetchAttestationReport6(report_data_hexstring, (void *)&snp_report_hex);
-    }
-    else
-    {
+    if (supportsDevSev()) {
+        success = fetchAttestationReport5(report_data_hexstring, (void*) &snp_report_hex);
+    } else if (supportsDevSevGuest()) {
+        success = fetchAttestationReport6(report_data_hexstring, (void*) &snp_report_hex);
+    } else {
         fprintf(stderr, "No supported SNP device found\n");
     }
-
-    if (success)
-    {
+   
+    if (success) {
         printReport((const snp_attestation_report *)snp_report_hex);
         exit(0);
     }
