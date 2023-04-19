@@ -14,7 +14,7 @@ RUN mkdir /run/sshd
 # which can be used to trick an attestation agent or relying party
 
 COPY ./bin/skr ./bin/get-snp-report ./bin/verbose-report /bin/
-COPY skr.sh test-local.sh attest.sh skr-debug.sh tests/*_client.sh /
+COPY skr.sh skr-debug.sh tests/*_client.sh /
 RUN mkdir -p /tests/skr; mv *_client.sh /tests/skr
 RUN chmod +x /*.sh /tests/skr/*.sh; date > /made-date
 
