@@ -1,0 +1,20 @@
+FROM golang:latest as build
+
+COPY . src
+RUN cd src &&  CGO_ENABLED=0 GOOS=linux GOPATH=$(path) go build -o /skr github.com/Microsoft/confidential-sidecar-containers/cmd/skr
+RUN cd src/tools/get-snp-report && make && mv bin/get-snp-report / && mv bin/get-fake-snp-report /
+
+FROM alpine:3.17.1
+
+RUN apk update && apk --no-cache add curl
+
+RUN mkdir -p bin
+
+COPY --from=build /skr ./bin/
+COPY --from=build /get-snp-report ./bin/
+COPY docker/skr/skr.sh /
+COPY docker/skr/tests/*_client.sh /
+RUN mkdir -p /tests/skr && mv *_client.sh /tests/skr && chmod +x /*.sh /tests/skr/*.sh && date > /made-date
+
+# set the start command
+CMD [ "sleep", "1000000" ]
