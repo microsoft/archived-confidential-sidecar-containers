@@ -82,16 +82,16 @@ func THIMtoPEM(encodedHostCertsFromTHIM string) (string, uint64, error) {
 
 // Matching PR https://github.com/microsoft/hcsshim/pull/1708
 
-func GetUvmInfomation() (UvmInformation, error) {
+func GetUvmInformation() (UvmInformation, error) {
 	securityContextDir := os.Getenv("UVM_SECURITY_CONTEXT_DIR")
 	if securityContextDir != "" {
-		return GetUvmInfomationFromFiles()
+		return GetUvmInformationFromFiles()
 	} else {
-		return GetUvmInfomationFromEnv()
+		return GetUvmInformationFromEnv()
 	}
 }
 
-func GetUvmInfomationFromEnv() (UvmInformation, error) {
+func GetUvmInformationFromEnv() (UvmInformation, error) {
 	var encodedUvmInformation UvmInformation
 
 	encodedHostCertsFromTHIM := os.Getenv("UVM_HOST_AMD_CERTIFICATE")
@@ -137,7 +137,7 @@ func readSecurityContextFile(dir string, filename string) (string, error) {
 	return string(blob), nil
 }
 
-func GetUvmInfomationFromFiles() (UvmInformation, error) {
+func GetUvmInformationFromFiles() (UvmInformation, error) {
 	var encodedUvmInformation UvmInformation
 
 	securityContextDir := os.Getenv("UVM_SECURITY_CONTEXT_DIR")
