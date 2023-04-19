@@ -25,11 +25,7 @@ func main() {
 
 	// flags declaration using flag package
 	flag.StringVar(&encodedSecurityPolicy, "p", "", "Security policy in base64-encoded string format")
-<<<<<<< HEAD
-	flag.StringVar(&filename, "f", "", "file containing ecurity policy in base64-encoded string format")
-=======
 	flag.StringVar(&filename, "f", "", "file containing security policy in base64-encoded string format")
->>>>>>> 1d09a65c5cf018b767184cde1a0354206917bd33
 	flag.BoolVar(&verbose, "v", false, "print the decoded security policy")
 	flag.Parse()
 
