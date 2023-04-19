@@ -13,8 +13,8 @@ import (
 
 /*
 	This tool computes the sha-256 digest of the security policy.
-	The input is already base64 
-
+	The input is already base64 encoded as that is required for the ARM template/API
+	so taking that format is more convienient.
  */
 
 func main() {
