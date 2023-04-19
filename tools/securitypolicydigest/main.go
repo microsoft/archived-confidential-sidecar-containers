@@ -15,7 +15,7 @@ import (
 	This tool computes the sha-256 digest of the security policy.
 	The input is already base64 encoded as that is required for the ARM template/API
 	so taking that format is more convienient.
- */
+*/
 
 func main() {
 	// variables declaration
@@ -25,7 +25,7 @@ func main() {
 
 	// flags declaration using flag package
 	flag.StringVar(&encodedSecurityPolicy, "p", "", "Security policy in base64-encoded string format")
-	flag.StringVar(&filename, "f", "", "file containing ecurity policy in base64-encoded string format")
+	flag.StringVar(&filename, "f", "", "file containing security policy in base64-encoded string format")
 	flag.BoolVar(&verbose, "v", false, "print the decoded security policy")
 	flag.Parse()
 
@@ -50,12 +50,12 @@ func main() {
 
 	inittimeDataBytes, err := base64.StdEncoding.DecodeString(encodedSecurityPolicy)
 	if err != nil {
-		fmt.Println("Could not decode - required base64 (Std, with padding) encoding")
+		fmt.Println("Could not decode: base64 encoding (Std, with padding) required")
 		os.Exit(1)
 	}
 
 	if verbose {
-		fmt.Printf("inittimeData %s", string(inittimeDataBytes))
+		fmt.Printf("inittimeData %s\n", string(inittimeDataBytes))
 	}
 
 	h := sha256.New()
