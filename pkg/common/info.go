@@ -31,13 +31,7 @@ type THIMCerts struct {
 	CacheControl     string `json:"cacheControl"`
 }
 
-type UvmInformation struct {
-	EncodedSecurityPolicy   string    // customer security policy
-	InitialCerts            THIMCerts // platform certificates for the actual physical host
-	EncodedUvmReferenceInfo string    // endorsements for the particular UVM image
-}
-
-func (thimCerts THIMCerts) GetLocalCerts(encodedHostCertsFromTHIM string) (string, uint64, error) {
+func (thimCerts *THIMCerts) GetLocalCerts(encodedHostCertsFromTHIM string) (string, uint64, error) {
 	var thimTcbm uint64
 	hostCertsFromTHIM, err := base64.StdEncoding.DecodeString(encodedHostCertsFromTHIM)
 	if err != nil {
@@ -68,6 +62,12 @@ func (thimCerts THIMCerts) GetLocalCerts(encodedHostCertsFromTHIM string) (strin
 	}
 
 	return certsString, thimTcbm, nil
+}
+
+type UvmInformation struct {
+	EncodedSecurityPolicy   string    // customer security policy
+	InitialCerts            THIMCerts // platform certificates for the actual physical host
+	EncodedUvmReferenceInfo string    // endorsements for the particular UVM image
 }
 
 // Late in Public Preview, we made a change to pass the UVM information

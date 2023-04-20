@@ -105,7 +105,7 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 		}
 
 		return []byte(thimCerts), thimTcbm, nil
-	case "AzCache":
+	default: // case "AzCache": --> to match previous if-else logic and avoid failing when no certcache is supplied
 		uri = fmt.Sprintf(AzureCertCacheRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, strconv.FormatUint(reportedTCB, 16), certCache.APIVersion)
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
@@ -116,8 +116,6 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) 
 			return nil, thimTcbm, err
 		}
 		return certChain, thimTcbm, nil
-	default:
-		return nil, thimTcbm, errors.Errorf("cert cache endpoint type %s not supported", certCache.EndpointType)
 	}
 }
 
