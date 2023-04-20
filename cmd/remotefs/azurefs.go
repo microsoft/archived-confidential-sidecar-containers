@@ -47,7 +47,7 @@ var (
 
 var (
 	Identity              common.Identity
-	CertCache             attest.CertCache
+	CertState             attest.CertState
 	EncodedUvmInformation common.UvmInformation
 	// for testing encrypted filesystems without releasing secrets from
 	// AKV allowTestingWithRawKey needs to be set to true and a raw key
@@ -184,10 +184,10 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 		return "", err
 	}
 
-	// 2) release key identified by keyBlob using encoded security policy and certcache
+	// 2) release key identified by keyBlob using encoded security policy and certcache (contained in CertState object)
 	//    certcache is required for validating the attestation report against the cert
 	//    chain of the chip identified in the attestation report
-	jwKey, err := skr.SecureKeyRelease(Identity, CertCache, keyBlob, EncodedUvmInformation)
+	jwKey, err := skr.SecureKeyRelease(Identity, CertState, keyBlob, EncodedUvmInformation)
 	if err != nil {
 		logrus.WithError(err).Debugf("failed to release key: %v", keyBlob)
 		return "", errors.Wrapf(err, "failed to release key")
@@ -357,12 +357,21 @@ func containerMountAzureFilesystem(tempDir string, index int, fs AzureFilesystem
 func MountAzureFilesystems(tempDir string, info RemoteFilesystemsInformation) (err error) {
 
 	Identity = info.AzureInfo.Identity
-	CertCache = info.AzureInfo.CertCache
 
 	// Retrieve the incoming encoded security policy, cert and uvm endorsement
 	EncodedUvmInformation, err = common.GetUvmInformation()
 	if err != nil {
 		logrus.Fatalf("Failed to extract UVM_* environment variables: %s", err.Error())
+	}
+
+	thimTcbm, err := strconv.ParseUint(EncodedUvmInformation.InitialCerts.Tcbm, 10, 64)
+	if err != nil {
+		logrus.Fatal("Unable to convert TCBM to a uint64")
+	}
+
+	CertState = attest.CertState{
+		CertCache: info.AzureInfo.CertCache,
+		Tcbm:      thimTcbm,
 	}
 
 	for i, fs := range info.AzureFilesystems {
