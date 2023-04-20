@@ -37,7 +37,7 @@ const (
 // CertCache contains information about the certificate cache service
 // that provides access to the certificate chain required upon attestation
 type CertCache struct {
-	EndpointType string `json:"endpoint_type,omitempty"`
+	EndpointType string `json:"endpoint_type,omitempty"` // AMD, AzCache, LocalTHIM
 	Endpoint     string `json:"endpoint"`
 	TEEType      string `json:"tee_type,omitempty"`
 	APIVersion   string `json:"api_version,omitempty"`

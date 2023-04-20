@@ -175,11 +175,14 @@ func Test_CertCache(t *testing.T) {
 		t.Fatalf("failed to deserialize attestation report")
 	}
 
+	ValidEndpointType := "AzCache"
 	ValidEndpoint := "americas.test.acccache.azure.net"
 	ValidTEEType := "SevSnpVM"
 	ValidAPIVersion := "api-version=2020-10-15-preview"
 	ValidChipID := TestSNPReport.ChipID
 	ValidPlatformVersion := TestSNPReport.PlatformVersion
+
+	// To-Do: add tests for local THIM endpoints
 
 	type testcase struct {
 		name string
@@ -199,9 +202,10 @@ func Test_CertCache(t *testing.T) {
 		{
 			name: "CertCache_Success",
 			certCache: CertCache{
-				Endpoint:   ValidEndpoint,
-				TEEType:    ValidTEEType,
-				APIVersion: ValidAPIVersion,
+				EndpointType: ValidEndpointType,
+				Endpoint:     ValidEndpoint,
+				TEEType:      ValidTEEType,
+				APIVersion:   ValidAPIVersion,
 			},
 			chipID:          ValidChipID,
 			platformVersion: ValidPlatformVersion,
@@ -213,9 +217,10 @@ func Test_CertCache(t *testing.T) {
 		{
 			name: "CertCache_Invalid_PlatformVersion",
 			certCache: CertCache{
-				Endpoint:   ValidEndpoint,
-				TEEType:    ValidTEEType,
-				APIVersion: ValidAPIVersion,
+				EndpointType: ValidEndpointType,
+				Endpoint:     ValidEndpoint,
+				TEEType:      ValidTEEType,
+				APIVersion:   ValidAPIVersion,
 			},
 			chipID:          ValidChipID,
 			platformVersion: 0xdeadbeef,
@@ -226,9 +231,10 @@ func Test_CertCache(t *testing.T) {
 		{
 			name: "CertCache_Invalid_ChipID",
 			certCache: CertCache{
-				Endpoint:   ValidEndpoint,
-				TEEType:    ValidTEEType,
-				APIVersion: ValidAPIVersion,
+				EndpointType: ValidEndpointType,
+				Endpoint:     ValidEndpoint,
+				TEEType:      ValidTEEType,
+				APIVersion:   ValidAPIVersion,
 			},
 			chipID:          "0xdeadbeef",
 			platformVersion: ValidPlatformVersion,
@@ -239,13 +245,28 @@ func Test_CertCache(t *testing.T) {
 		{
 			name: "CertCache_Invalid_TEEType",
 			certCache: CertCache{
-				Endpoint:   ValidEndpoint,
-				TEEType:    "InvalidTEEType",
-				APIVersion: ValidAPIVersion,
+				EndpointType: ValidEndpointType,
+				Endpoint:     ValidEndpoint,
+				TEEType:      "InvalidTEEType",
+				APIVersion:   ValidAPIVersion,
 			},
 			chipID:          ValidChipID,
 			platformVersion: ValidPlatformVersion,
 			expectedError:   errors.Errorf("http response status equal to 404 Not Found"),
+			expectErr:       true,
+		},
+		// CertCache_Invalid_EndpointType passes if the uri associated with the requested tee_type and certificate was not found
+		{
+			name: "CertCache_Invalid_EndpointType",
+			certCache: CertCache{
+				EndpointType: "InvalidEndpointType",
+				Endpoint:     ValidEndpoint,
+				TEEType:      ValidTEEType,
+				APIVersion:   ValidAPIVersion,
+			},
+			chipID:          ValidChipID,
+			platformVersion: ValidPlatformVersion,
+			expectedError:   errors.Errorf("cert cache endpoint type InvalidEndpointType not supported"),
 			expectErr:       true,
 		},
 	}
@@ -318,9 +339,10 @@ func Test_MAA(t *testing.T) {
 	ValidMAAAPIVersion := "api-version=2020-10-01"
 
 	certCache := CertCache{
-		Endpoint:   "americas.test.acccache.azure.net",
-		TEEType:    "SevSnpVM",
-		APIVersion: "api-version=2020-10-15-preview",
+		EndpointType: "AzCache",
+		Endpoint:     "americas.test.acccache.azure.net",
+		TEEType:      "SevSnpVM",
+		APIVersion:   "api-version=2020-10-15-preview",
 	}
 
 	ValidCertChain, _, err := certCache.retrieveCertChain(TestSNPReport.ChipID, TestSNPReport.PlatformVersion)
@@ -329,9 +351,10 @@ func Test_MAA(t *testing.T) {
 	}
 
 	ProductionCertCache := CertCache{
-		Endpoint:   "americas.acccache.azure.net",
-		TEEType:    "SevSnpVM",
-		APIVersion: "api-version=2020-10-15-preview",
+		EndpointType: "AzCache",
+		Endpoint:     "americas.acccache.azure.net",
+		TEEType:      "SevSnpVM",
+		APIVersion:   "api-version=2020-10-15-preview",
 	}
 
 	ProductionValidCertChain, _, err := ProductionCertCache.retrieveCertChain(ProductionTestSNPReport.ChipID, ProductionTestSNPReport.PlatformVersion)
