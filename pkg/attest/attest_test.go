@@ -252,7 +252,7 @@ func Test_CertCache(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			certchain, _, err := tc.certCache.retrieveCertChain(tc.chipID, tc.platformVersion, "")
+			certchain, _, err := tc.certCache.retrieveCertChain(tc.chipID, tc.platformVersion)
 
 			if tc.expectErr {
 				if err == nil {
@@ -323,7 +323,7 @@ func Test_MAA(t *testing.T) {
 		APIVersion: "api-version=2020-10-15-preview",
 	}
 
-	ValidCertChain, _, err := certCache.retrieveCertChain(TestSNPReport.ChipID, TestSNPReport.PlatformVersion, "")
+	ValidCertChain, _, err := certCache.retrieveCertChain(TestSNPReport.ChipID, TestSNPReport.PlatformVersion)
 	if err != nil {
 		t.Fatalf("retrieving cert chain failed")
 	}
@@ -334,7 +334,7 @@ func Test_MAA(t *testing.T) {
 		APIVersion: "api-version=2020-10-15-preview",
 	}
 
-	ProductionValidCertChain, _, err := ProductionCertCache.retrieveCertChain(ProductionTestSNPReport.ChipID, ProductionTestSNPReport.PlatformVersion, "")
+	ProductionValidCertChain, _, err := ProductionCertCache.retrieveCertChain(ProductionTestSNPReport.ChipID, ProductionTestSNPReport.PlatformVersion)
 	if err != nil {
 		t.Fatalf("retrieving cert chain failed")
 	}

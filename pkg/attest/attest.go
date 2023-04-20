@@ -6,6 +6,7 @@ package attest
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 
 	"io/ioutil"
 	"os"
@@ -14,6 +15,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+// CertCache contains information about the certificate cache service
+// that provides access to the certificate chain required upon attestation
+type CertState struct {
+	CertCache CertCache `json:"cert_cache"`
+	Tcbm      uint64    `json:"tcbm"`
+}
 
 func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byte, error) {
 	// check if sev device exists on the platform; if not fetch fake snp report
@@ -45,14 +53,13 @@ func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byt
 	return SNPReportBytes, inittimeDataBytes, nil
 }
 
-func RefreshCertChain(certCache CertCache, uvmInformation *common.UvmInformation, SNPReport SNPAttestationReport) ([]byte, error) {
+func (certState CertState) RefreshCertChain(SNPReport SNPAttestationReport) ([]byte, error) {
 	// TCB values not the same, try refreshing cert cache first
-	vcekCertChain, thimTcbm, err := certCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB, uvmInformation.LocalThimUri)
+	vcekCertChain, thimTcbm, err := certState.CertCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
 	if err != nil {
 		return nil, errors.Wrap(err, "refreshing CertChain failed")
 	}
-	uvmInformation.CertChain = string(vcekCertChain)
-	uvmInformation.ThimTcbm = thimTcbm
+	certState.Tcbm = thimTcbm
 	return vcekCertChain, nil
 }
 
@@ -88,7 +95,7 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 // (E) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
 //
 //	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
-func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
+func (certState CertState) Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
 	// Fetch the attestation report
 	SNPReportBytes, inittimeDataBytes, err := GetSNPReport(uvmInformation.EncodedSecurityPolicy, runtimeDataBytes)
 	if err != nil {
@@ -105,14 +112,14 @@ func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformatio
 	// At this point check that the TCB of the cert chain matches that reported so we fail early or
 	// fetch fresh certs by other means.
 	var vcekCertChain []byte
-	if SNPReport.ReportedTCB != uvmInformation.ThimTcbm {
+	if SNPReport.ReportedTCB != certState.Tcbm {
 		// TCB values not the same, try refreshing cert cache first
-		vcekCertChain, err = RefreshCertChain(certCache, &uvmInformation, SNPReport)
+		vcekCertChain, err = certState.RefreshCertChain(SNPReport)
 		if err != nil {
 			return "", err
 		}
 
-		if SNPReport.ReportedTCB != uvmInformation.ThimTcbm {
+		if SNPReport.ReportedTCB != certState.Tcbm {
 			// TCB values still don't match, try retrieving the SNP report again
 			SNPReportBytes, inittimeDataBytes, err = GetSNPReport(uvmInformation.EncodedSecurityPolicy, runtimeDataBytes)
 			if err != nil {
@@ -124,18 +131,19 @@ func Attest(certCache CertCache, maa MAA, runtimeDataBytes []byte, uvmInformatio
 			}
 
 			// refresh certs again
-			vcekCertChain, err = RefreshCertChain(certCache, &uvmInformation, SNPReport)
+			vcekCertChain, err = certState.RefreshCertChain(SNPReport)
 			if err != nil {
 				return "", err
 			}
 
 			// if no match after refreshing certs and attestation report, fail
-			if SNPReport.ReportedTCB != uvmInformation.ThimTcbm {
-				return "", errors.New("SNP reported TCB value doesn't match Certificate TCB values")
+			if SNPReport.ReportedTCB != certState.Tcbm {
+				return "", errors.New(fmt.Sprintf("SNP reported TCB value: %d doesn't match Certificate TCB value: %d", SNPReport.ReportedTCB, certState.Tcbm))
 			}
 		}
 	} else {
-		vcekCertChain = []byte(uvmInformation.CertChain)
+		certString := uvmInformation.InitialCerts.VcekCert + uvmInformation.InitialCerts.CertificateChain
+		vcekCertChain = []byte(certString)
 	}
 
 	uvmReferenceInfoBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedUvmReferenceInfo)

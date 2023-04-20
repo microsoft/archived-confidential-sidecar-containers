@@ -24,6 +24,7 @@ const (
 	AzureCertCacheRequestURITemplate = "https://%s/%s/certificates/%s/%s?%s"
 	AmdVCEKRequestURITemplate        = "https://%s/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 	AmdCertChainRequestURITemplate   = "https://%s/%s/cert_chain"
+	LocalTHIMUriTemplate             = "https://%s" // To-Do update once we know what this looks like
 )
 
 const (
@@ -36,10 +37,10 @@ const (
 // CertCache contains information about the certificate cache service
 // that provides access to the certificate chain required upon attestation
 type CertCache struct {
-	AMD        bool   `json:"amd,omitempty"`
-	Endpoint   string `json:"endpoint"`
-	TEEType    string `json:"tee_type,omitempty"`
-	APIVersion string `json:"api_version,omitempty"`
+	EndpointType string `json:"endpoint_type,omitempty"`
+	Endpoint     string `json:"endpoint"`
+	TEEType      string `json:"tee_type,omitempty"`
+	APIVersion   string `json:"api_version,omitempty"`
 }
 
 // retrieveCertChain interacts with the cert cache service to fetch the cert chain of the
@@ -47,15 +48,17 @@ type CertCache struct {
 // are retrived from the attestation report.
 // Returns the cert chain as a bytes array, the TCBM from the local THIM cert cache is as a string
 // (only in the case of a local THIM endpoint), and any errors encountered
-func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64, localThimUri string) ([]byte, uint64, error) {
+func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64) ([]byte, uint64, error) {
 	// HTTP GET request to cert cache service
 	var uri string
 	var thimTcbm uint64
+	var thimCerts common.THIMCerts
 
 	reportedTCBBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(reportedTCBBytes, reportedTCB)
 
-	if certCache.AMD {
+	switch certCache.EndpointType {
+	case "AMD":
 		// AMD cert cache endpoint returns the VCEK certificate in DER format
 		uri = fmt.Sprintf(AmdVCEKRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, reportedTCBBytes[UcodeSplTcbmByteIndex], reportedTCBBytes[SnpSplTcbmByteIndex], reportedTCBBytes[TeeSplTcbmByteIndex], reportedTCBBytes[BlSplTcbmByteIndex])
 		httpResponse, err := common.HTTPGetRequest(uri, false)
@@ -84,9 +87,10 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64, 
 		fullCertChain := append(vcekPEMBytes, certChainPEMBytes[:]...)
 
 		return fullCertChain, thimTcbm, nil
-	} else if certCache.TEEType == "LocalTHIM" && localThimUri != "" {
+	case "LocalTHIM":
+		uri = fmt.Sprintf(LocalTHIMUriTemplate, certCache.Endpoint)
 		// local THIM cert cache endpoint returns THIM Certs object
-		httpResponse, err := common.HTTPGetRequest(localThimUri, false)
+		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
 			return nil, thimTcbm, errors.Wrapf(err, "certcache http get request failed")
 		}
@@ -95,13 +99,13 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64, 
 			return nil, thimTcbm, errors.Wrapf(err, "pulling certchain response from get request failed")
 		}
 
-		thimCerts, thimTcbm, err := common.THIMtoPEM(string(THIMCertsBytes))
+		thimCerts, thimTcbm, err := thimCerts.GetLocalCerts(string(THIMCertsBytes))
 		if err != nil {
 			return nil, thimTcbm, err
 		}
 
 		return []byte(thimCerts), thimTcbm, nil
-	} else {
+	case "AzCache":
 		uri = fmt.Sprintf(AzureCertCacheRequestURITemplate, certCache.Endpoint, certCache.TEEType, chipID, strconv.FormatUint(reportedTCB, 16), certCache.APIVersion)
 		httpResponse, err := common.HTTPGetRequest(uri, false)
 		if err != nil {
@@ -112,9 +116,11 @@ func (certCache CertCache) retrieveCertChain(chipID string, reportedTCB uint64, 
 			return nil, thimTcbm, err
 		}
 		return certChain, thimTcbm, nil
+	default:
+		return nil, thimTcbm, errors.Errorf("cert cache endpoint type %s not supported", certCache.EndpointType)
 	}
 }
 
-func (certCache CertCache) GetCertChain(chipID string, reportedTCB uint64, localThimUri string) ([]byte, uint64, error) {
-	return certCache.retrieveCertChain(chipID, reportedTCB, localThimUri)
+func (certCache CertCache) GetCertChain(chipID string, reportedTCB uint64) ([]byte, uint64, error) {
+	return certCache.retrieveCertChain(chipID, reportedTCB)
 }

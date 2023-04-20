@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
@@ -21,7 +22,7 @@ import (
 
 var (
 	Identity              common.Identity
-	ServerCertCache       attest.CertCache
+	ServerCertState       attest.CertState
 	EncodedUvmInformation common.UvmInformation
 	ready                 bool
 )
@@ -149,7 +150,7 @@ func postMAAAttest(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
 
-	maaToken, err := attest.Attest(ServerCertCache, maa, runtimeDataBytes, EncodedUvmInformation)
+	maaToken, err := ServerCertState.Attest(maa, runtimeDataBytes, EncodedUvmInformation)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
@@ -192,7 +193,7 @@ func postKeyRelease(c *gin.Context) {
 		AKV:       akv,
 	}
 
-	jwKey, err := skr.SecureKeyRelease(Identity, ServerCertCache, skrKeyBlob, EncodedUvmInformation)
+	jwKey, err := skr.SecureKeyRelease(Identity, ServerCertState, skrKeyBlob, EncodedUvmInformation)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
@@ -209,12 +210,14 @@ func postKeyRelease(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
 }
 
-func setupServer(certCache attest.CertCache, identity common.Identity) *gin.Engine {
-	ServerCertCache = certCache
+func setupServer(certState attest.CertState, identity common.Identity) *gin.Engine {
+	ServerCertState = certState
 	Identity = identity
 
+	certString := EncodedUvmInformation.InitialCerts.VcekCert + EncodedUvmInformation.InitialCerts.CertificateChain
+
 	logrus.Debugf("Setting security policy to %s", EncodedUvmInformation.EncodedSecurityPolicy)
-	logrus.Debugf("Setting platform certs to %s", EncodedUvmInformation.CertChain)
+	logrus.Debugf("Setting platform certs to %s", certString)
 	logrus.Debugf("Setting uvm reference to %s", EncodedUvmInformation.EncodedUvmReferenceInfo)
 	r := gin.Default()
 
@@ -226,7 +229,7 @@ func setupServer(certCache attest.CertCache, identity common.Identity) *gin.Engi
 	// the certificate chain endording the signing key of the hardware attestation.
 	// Hence, these APIs are exposed only if the platform certificate information
 	// has been provided at startup time.
-	if ServerCertCache.Endpoint != "" || EncodedUvmInformation.CertChain != "" {
+	if certState.CertCache.Endpoint != "" || certString != "" {
 		r.POST("/attest/maa", postMAAAttest)
 		r.POST("/key/release", postKeyRelease)
 	}
@@ -306,5 +309,15 @@ func main() {
 	// See above comment about hostname and risk of breaking confidentiality
 	url := *hostname + ":" + *port
 
-	setupServer(info.CertCache, info.Identity).Run(url)
+	thimTcbm, err := strconv.ParseUint(EncodedUvmInformation.InitialCerts.Tcbm, 10, 64)
+	if err != nil {
+		logrus.Fatal("Unable to convert TCBM to a uint64")
+	}
+
+	certState := attest.CertState{
+		CertCache: info.CertCache,
+		Tcbm:      thimTcbm,
+	}
+
+	setupServer(certState, info.Identity).Run(url)
 }
