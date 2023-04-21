@@ -16,11 +16,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// CertCache contains information about the certificate cache service
+// CertState contains information about the certificate cache service
 // that provides access to the certificate chain required upon attestation
 type CertState struct {
-	CertCache CertCache `json:"cert_cache"`
-	Tcbm      uint64    `json:"tcbm"`
+	CertFetcher CertFetcher `json:"cert_cache"`
+	Tcbm        uint64      `json:"tcbm"`
 }
 
 func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byte, error) {
@@ -54,8 +54,8 @@ func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byt
 }
 
 func (certState CertState) RefreshCertChain(SNPReport SNPAttestationReport) ([]byte, error) {
-	// TCB values not the same, try refreshing cert cache first
-	vcekCertChain, thimTcbm, err := certState.CertCache.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
+	// TCB values not the same, try refreshing cert first
+	vcekCertChain, thimTcbm, err := certState.CertFetcher.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
 	if err != nil {
 		return nil, errors.Wrap(err, "refreshing CertChain failed")
 	}
@@ -110,6 +110,8 @@ func (certState CertState) Attest(maa MAA, runtimeDataBytes []byte, uvmInformati
 	if err = SNPReport.DeserializeReport(SNPReportBytes); err != nil {
 		return "", errors.Wrapf(err, "failed to deserialize attestation report")
 	}
+
+	logrus.Debugf("SNP Report Reported TCB: %d\nCert Chain TCBM Value: %d\n", SNPReport.ReportedTCB, certState.Tcbm)
 
 	// At this point check that the TCB of the cert chain matches that reported so we fail early or
 	// fetch fresh certs by other means.

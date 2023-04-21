@@ -55,8 +55,9 @@ func (thimCerts *THIMCerts) GetLocalCerts(encodedHostCertsFromTHIM string) (stri
 	}
 
 	logrus.Debugf("certsFromTHIM:\n\n%s\n\n", certsString)
+	logrus.Debugf("thimTcbm: %s\n\n", thimCerts.Tcbm)
 
-	thimTcbm, err = strconv.ParseUint(thimCerts.Tcbm, 10, 64)
+	thimTcbm, err = strconv.ParseUint(thimCerts.Tcbm, 16, 64)
 	if err != nil {
 		return "", thimTcbm, errors.Wrap(err, "Unable to convert TCBM from THIM certificates to a uint64")
 	}

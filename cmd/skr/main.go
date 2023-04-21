@@ -32,7 +32,7 @@ type AzureInformation struct {
 	// the certificate chain endorsing hardware attestations
 	// can be retrieved. This is optional only when the container
 	// will expose attest/maa and key/release APIs.
-	CertCache attest.CertCache `json:"certcache,omitempty"`
+	CertFetcher attest.CertFetcher `json:"certcache,omitempty"`
 	// Identifier of the managed identity to be used
 	// for authenticating with AKV. This is optional and
 	// useful only when the container group has been assigned
@@ -229,7 +229,7 @@ func setupServer(certState attest.CertState, identity common.Identity) *gin.Engi
 	// the certificate chain endording the signing key of the hardware attestation.
 	// Hence, these APIs are exposed only if the platform certificate information
 	// has been provided at startup time.
-	if certState.CertCache.Endpoint != "" || certString != "" {
+	if certState.CertFetcher.Endpoint != "" || certString != "" {
 		r.POST("/attest/maa", postMAAAttest)
 		r.POST("/key/release", postKeyRelease)
 	}
@@ -309,14 +309,15 @@ func main() {
 	// See above comment about hostname and risk of breaking confidentiality
 	url := *hostname + ":" + *port
 
-	thimTcbm, err := strconv.ParseUint(EncodedUvmInformation.InitialCerts.Tcbm, 10, 64)
+	logrus.Debugf("EncodedUvmInformation.InitialCerts.Tcbm: %s\n", EncodedUvmInformation.InitialCerts.Tcbm)
+	thimTcbm, err := strconv.ParseUint(EncodedUvmInformation.InitialCerts.Tcbm, 16, 64)
 	if err != nil {
-		logrus.Fatal("Unable to convert TCBM to a uint64")
+		logrus.Fatal("Unable to convert Initial Certs TCBM to a uint64")
 	}
 
 	certState := attest.CertState{
-		CertCache: info.CertCache,
-		Tcbm:      thimTcbm,
+		CertFetcher: info.CertFetcher,
+		Tcbm:        thimTcbm,
 	}
 
 	setupServer(certState, info.Identity).Run(url)
