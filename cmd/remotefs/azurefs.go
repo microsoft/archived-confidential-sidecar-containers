@@ -184,8 +184,8 @@ func releaseRemoteFilesystemKey(tempDir string, keyDerivationBlob skr.KeyDerivat
 		return "", err
 	}
 
-	// 2) release key identified by keyBlob using encoded security policy and certcache (contained in CertState object)
-	//    certcache is required for validating the attestation report against the cert
+	// 2) release key identified by keyBlob using encoded security policy and certfetcher (contained in CertState object)
+	//    certfetcher is required for validating the attestation report against the cert
 	//    chain of the chip identified in the attestation report
 	jwKey, err := skr.SecureKeyRelease(Identity, CertState, keyBlob, EncodedUvmInformation)
 	if err != nil {
@@ -371,8 +371,8 @@ func MountAzureFilesystems(tempDir string, info RemoteFilesystemsInformation) (e
 	}
 
 	CertState = attest.CertState{
-		CertCache: info.AzureInfo.CertCache,
-		Tcbm:      thimTcbm,
+		CertFetcher: info.AzureInfo.CertFetcher,
+		Tcbm:        thimTcbm,
 	}
 
 	for i, fs := range info.AzureFilesystems {

@@ -18,8 +18,8 @@ import (
 )
 
 type AzureInfo struct {
-	CertCache attest.CertFetcher `json:"certcache,omitempty"`
-	Identity  common.Identity    `json:"identity,omitempty"`
+	CertFetcher attest.CertFetcher `json:"certcache,omitempty"`
+	Identity    common.Identity    `json:"identity,omitempty"`
 }
 
 type RemoteFilesystemsInformation struct {

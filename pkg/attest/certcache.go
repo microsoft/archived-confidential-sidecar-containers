@@ -204,6 +204,6 @@ func (certFetcher CertFetcher) retrieveCertChain(chipID string, reportedTCB uint
 	}
 }
 
-func (certCache CertFetcher) GetCertChain(chipID string, reportedTCB uint64) ([]byte, uint64, error) {
-	return certCache.retrieveCertChain(chipID, reportedTCB)
+func (certFetcher CertFetcher) GetCertChain(chipID string, reportedTCB uint64) ([]byte, uint64, error) {
+	return certFetcher.retrieveCertChain(chipID, reportedTCB)
 }
