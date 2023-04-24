@@ -51,11 +51,14 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 	// Fetch the attestation report
 
 	// check if sev device exists on the platform; if not fetch fake snp report
-	var fetchRealSNPReport bool
-	if _, err := os.Stat("/dev/sev"); os.IsNotExist(err) {
-		fetchRealSNPReport = false
-	} else {
-		fetchRealSNPReport = true
+
+	fetchRealSNPReport := true
+	if _, err := os.Stat("/dev/sev"); errors.Is(err, os.ErrNotExist) {
+		// dev/sev doesn't exist, check dev/sev-guest
+		if _, err := os.Stat("/dev/sev-guest"); errors.Is(err, os.ErrNotExist) {
+			// dev/sev-guest doesn't exist
+			fetchRealSNPReport = false
+		}
 	}
 
 	inittimeDataBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedSecurityPolicy)
