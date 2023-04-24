@@ -224,7 +224,7 @@ func Test_CertFetcher(t *testing.T) {
 			},
 			chipID:          ValidChipID,
 			platformVersion: 0xdeadbeef,
-			expectedError:   errors.Errorf("http response status equal to 404 Not Found"),
+			expectedError:   errors.Errorf("pulling certchain response from AzCache get request failed: http response status equal to 404 Not Found"),
 			expectErr:       true,
 		},
 		// CertFetcher_Invalid_ChipID passes if the uri associated with the requested certificate was not found
@@ -238,7 +238,7 @@ func Test_CertFetcher(t *testing.T) {
 			},
 			chipID:          "0xdeadbeef",
 			platformVersion: ValidPlatformVersion,
-			expectedError:   errors.Errorf("http response status equal to 404 Not Found"),
+			expectedError:   errors.Errorf("pulling certchain response from AzCache get request failed: http response status equal to 404 Not Found"),
 			expectErr:       true,
 		},
 		// CertFetcher_Invalid_TEEType passes if the uri associated with the requested tee_type and certificate was not found
@@ -252,7 +252,7 @@ func Test_CertFetcher(t *testing.T) {
 			},
 			chipID:          ValidChipID,
 			platformVersion: ValidPlatformVersion,
-			expectedError:   errors.Errorf("http response status equal to 404 Not Found"),
+			expectedError:   errors.Errorf("pulling certchain response from AzCache get request failed: http response status equal to 404 Not Found"),
 			expectErr:       true,
 		},
 		// CertFetcher_Invalid_EndpointType passes if the uri associated with the requested tee_type and certificate was not found
