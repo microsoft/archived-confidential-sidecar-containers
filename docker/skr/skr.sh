@@ -17,8 +17,18 @@ if [ -n "${SkrSideCarArgs}" ]; then
   CmdlineArgs="${CmdlineArgs} -base64 ${SkrSideCarArgs}"
 fi
 
+if [ -z "${CorruptedTcbm}" ]; then
+  CorruptedTcbm=$2
+fi
+
+echo CorruptedTcbm = $CorruptedTcbm
+
+if [ -n "${CorruptedTcbm}" ]; then
+  CmdlineArgs="${CmdlineArgs} -corruptedTcbm ${CorruptedTcbm}"
+fi
+
 if [ -z "${Port}" ]; then
-  Port=$2
+  Port=$3
 fi
 
 echo Port = $Port

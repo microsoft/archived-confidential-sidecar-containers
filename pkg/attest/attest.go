@@ -53,7 +53,7 @@ func GetSNPReport(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byt
 	return SNPReportBytes, inittimeDataBytes, nil
 }
 
-func (certState CertState) RefreshCertChain(SNPReport SNPAttestationReport) ([]byte, error) {
+func (certState *CertState) RefreshCertChain(SNPReport SNPAttestationReport) ([]byte, error) {
 	// TCB values not the same, try refreshing cert first
 	vcekCertChain, thimTcbm, err := certState.CertFetcher.GetCertChain(SNPReport.ChipID, SNPReport.ReportedTCB)
 	if err != nil {
@@ -97,7 +97,7 @@ func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error
 // (E) runtime data: for example it may be a wrapping key blob that has been hashed during the attestation report
 //
 //	retrieval and has been reported by the PSP in the attestation report as REPORT DATA
-func (certState CertState) Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
+func (certState *CertState) Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformation) (string, error) {
 	// Fetch the attestation report
 	SNPReportBytes, inittimeDataBytes, err := GetSNPReport(uvmInformation.EncodedSecurityPolicy, runtimeDataBytes)
 	if err != nil {
