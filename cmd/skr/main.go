@@ -245,7 +245,11 @@ func main() {
 	logLevel := flag.String("loglevel", "debug", "Logging Level: trace, debug, info, warning, error, fatal, panic.")
 	logFile := flag.String("logfile", "", "Logging Target: An optional file name/path. Omit for console output.")
 	port := flag.String("port", "8080", "Port on which to listen")
-	testingCorruptedTcbm := flag.String("corruptedTcbm", "", "For TESTING purposes only. Corrupt the TCBM value but setting to a non-empty hexadecimal string.")
+	allowTestingMismatchedTCB := flag.Bool("allowTestingMismatchedTCB", false, "For TESTING purposes only. Corrupts the TCB value")
+
+	// for testing mis-matched TCB versions allowTestingWithMismatchedTCB
+	// and CorruptedTCB
+	CorruptedTCB := "ffffffff"
 
 	// WARNING!!!
 	// If the security policy does not control the arguments to this process then
@@ -286,7 +290,7 @@ func main() {
 	logrus.Debugf("   Port:          %s", *port)
 	logrus.Debugf("   Hostname:      %s", *hostname)
 	logrus.Debugf("   azure info:    %s", *azureInfoBase64string)
-	logrus.Debugf("   tcbm:    		 %s", *testingCorruptedTcbm)
+	logrus.Debugf("   corrupt tcbm:  %t", *allowTestingMismatchedTCB)
 
 	EncodedUvmInformation, err = common.GetUvmInformation() // from the env.
 	if err != nil {
@@ -312,9 +316,9 @@ func main() {
 	url := *hostname + ":" + *port
 
 	var tcbm string
-	if *testingCorruptedTcbm != "" {
-		logrus.Debugf("setting tcbm to testingCorruptedTcbm value: %s\n", *testingCorruptedTcbm)
-		tcbm = *testingCorruptedTcbm
+	if *allowTestingMismatchedTCB {
+		logrus.Debugf("setting tcbm to CorruptedTCB value: %s\n", CorruptedTCB)
+		tcbm = CorruptedTCB
 	} else {
 		logrus.Debugf("setting tcbm to EncodedUvmInformation.InitialCerts.Tcbm value: %s\n", EncodedUvmInformation.InitialCerts.Tcbm)
 		tcbm = EncodedUvmInformation.InitialCerts.Tcbm

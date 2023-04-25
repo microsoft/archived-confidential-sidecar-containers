@@ -17,8 +17,18 @@ if [ -n "${SkrSideCarArgs}" ]; then
   CmdlineArgs="${CmdlineArgs} -base64 ${SkrSideCarArgs}"
 fi
 
+if [ -z "${TestingMismatchedTCB}" ]; then
+  TestingMismatchedTCB=$2
+fi
+
+echo CorruptedTcbm = $TestingMismatchedTCB
+
+if [ -n "${TestingMismatchedTCB}" ]; then
+  CmdlineArgs="${CmdlineArgs} -allowTestingMismatchedTCB=${TestingMismatchedTCB}"
+fi
+
 if [ -z "${Port}" ]; then
-  Port=$2
+  Port=$3
 fi
 
 echo Port = $Port
