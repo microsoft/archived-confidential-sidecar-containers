@@ -18,11 +18,15 @@ import (
 // RawAttest returns the raw attestation report in hex string format
 func RawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte) (string, error) {
 	// check if sev device exists on the platform; if not fetch fake snp report
-	var fetchRealSNPReport bool
-	if _, err := os.Stat("/dev/sev"); os.IsNotExist(err) {
-		fetchRealSNPReport = false
-	} else {
-		fetchRealSNPReport = true
+	// check if sev device exists on the platform; if not fetch fake snp report
+
+	fetchRealSNPReport := true
+	if _, err := os.Stat("/dev/sev"); errors.Is(err, os.ErrNotExist) {
+		// dev/sev doesn't exist, check dev/sev-guest
+		if _, err := os.Stat("/dev/sev-guest"); errors.Is(err, os.ErrNotExist) {
+			// dev/sev-guest doesn't exist
+			fetchRealSNPReport = false
+		}
 	}
 
 	SNPReportBytes, err := FetchSNPReport(fetchRealSNPReport, runtimeDataBytes, inittimeDataBytes)
