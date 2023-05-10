@@ -14,7 +14,7 @@
     {
       "name": "[parameters('containerGroupName')]",
       "type": "Microsoft.ContainerInstance/containerGroups",
-      "apiVersion": "2022-10-01-preview",
+      "apiVersion": "2023-05-01",
       "location": "[resourceGroup().location]",
       "identity": {
         "type": "UserAssigned",
@@ -37,7 +37,7 @@
                 }
               ],
               "image": "mcr.microsoft.com/aci/encfs:2.2",
-              "securityContext":{
+              "securityContext": {
                 "privileged": true,
                 "allowPrivilegeEscalation": true  
               },
