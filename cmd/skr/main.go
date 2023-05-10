@@ -45,7 +45,6 @@ func main() {
 	// for testing mis-matched TCB versions allowTestingWithMismatchedTCB
 	// and CorruptedTCB
 	CorruptedTCB := "ffffffff"
-	fmt.Println("Hello hello")
 	// WARNING!!!
 	// If the security policy does not control the arguments to this process then
 	// this hostname could be set to 0.0.0.0 (an external interface) rather than 127.0.0.1 (visible only
