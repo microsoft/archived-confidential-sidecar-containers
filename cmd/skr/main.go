@@ -17,13 +17,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// var (
-// 	Identity              common.Identity
-// 	ServerCertState       attest.CertState
-// 	EncodedUvmInformation common.UvmInformation
-// 	ready                 bool
-// )
-
 type AzureInformation struct {
 	// Endpoint of the certificate cache service from which
 	// the certificate chain endorsing hardware attestations
