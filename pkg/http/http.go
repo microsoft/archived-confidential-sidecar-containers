@@ -188,6 +188,7 @@ func postKeyRelease(c *gin.Context) {
 func SetupServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation) *gin.Engine {
 	ServerCertState = certState
 	Identity = identity
+	EncodedUvmInformation = uvmInfo
 	certString := uvmInfo.InitialCerts.VcekCert + uvmInfo.InitialCerts.CertificateChain
 
 	logrus.Debugf("Setting security policy to %s", uvmInfo.EncodedSecurityPolicy)
