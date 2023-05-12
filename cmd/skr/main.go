@@ -13,7 +13,7 @@ import (
 
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
-	"github.com/Microsoft/confidential-sidecar-containers/pkg/http"
+	"github.com/Microsoft/confidential-sidecar-containers/pkg/http_listener"
 	"github.com/sirupsen/logrus"
 )
 
@@ -128,5 +128,5 @@ func main() {
 		Tcbm:        thimTcbm,
 	}
 
-	http.SetupServer(&certState, &info.Identity, &EncodedUvmInformation).Run(url)
+	http_listener.SetupServer(&certState, &info.Identity, &EncodedUvmInformation).Run(url)
 }

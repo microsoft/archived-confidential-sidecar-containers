@@ -16,6 +16,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	ServerCertState *CertState
+)
+
 // CertState contains information about the certificate cache service
 // that provides access to the certificate chain required upon attestation
 type CertState struct {

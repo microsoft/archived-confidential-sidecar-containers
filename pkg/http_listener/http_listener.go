@@ -1,4 +1,4 @@
-package http
+package http_listener
 
 import (
 	"encoding/base64"
@@ -13,12 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	Identity              *common.Identity
-	ServerCertState       *attest.CertState
-	EncodedUvmInformation *common.UvmInformation
-	ready                 bool
-)
+var server *gin.Engine // Singleton instance
+var ready bool
 
 type MAAAttestData struct {
 	// MAA endpoint which authors the MAA token
@@ -71,7 +67,7 @@ func postRawAttest(c *gin.Context) {
 	}
 
 	// base64 decode the incoming encoded security policy
-	inittimeDataBytes, err := base64.StdEncoding.DecodeString(EncodedUvmInformation.EncodedSecurityPolicy)
+	inittimeDataBytes, err := base64.StdEncoding.DecodeString(common.EncodedUvmInformation.EncodedSecurityPolicy)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": errors.Wrap(err, "decoding policy from Base64 format failed").Error()})
@@ -125,7 +121,7 @@ func postMAAAttest(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
 
-	maaToken, err := ServerCertState.Attest(maa, runtimeDataBytes, *EncodedUvmInformation)
+	maaToken, err := attest.ServerCertState.Attest(maa, runtimeDataBytes, *common.EncodedUvmInformation)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	}
@@ -168,7 +164,7 @@ func postKeyRelease(c *gin.Context) {
 		AKV:       akv,
 	}
 
-	jwKey, err := skr.SecureKeyRelease(*Identity, *ServerCertState, skrKeyBlob, *EncodedUvmInformation)
+	jwKey, err := skr.SecureKeyRelease(*common.WorkloadIdentity, *attest.ServerCertState, skrKeyBlob, *common.EncodedUvmInformation)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
@@ -186,31 +182,31 @@ func postKeyRelease(c *gin.Context) {
 }
 
 func SetupServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation) *gin.Engine {
-	ServerCertState = certState
-	Identity = identity
-	EncodedUvmInformation = uvmInfo
+	attest.ServerCertState = certState
+	common.WorkloadIdentity = identity
+	common.EncodedUvmInformation = uvmInfo
 	certString := uvmInfo.InitialCerts.VcekCert + uvmInfo.InitialCerts.CertificateChain
 
 	logrus.Debugf("Setting security policy to %s", uvmInfo.EncodedSecurityPolicy)
 	logrus.Debugf("Setting uvm reference to %s", uvmInfo.EncodedUvmReferenceInfo)
 	logrus.Debugf("Setting platform certs to %s", certString)
 
-	r := gin.Default()
+	if server == nil {
+		server = gin.Default()
+		server.GET("/status", getStatus)
+		server.POST("/attest/raw", postRawAttest)
 
-	r.GET("/status", getStatus)
-	r.POST("/attest/raw", postRawAttest)
+		// the implementation of attest/maa and key/release APIs call MAA service
+		// to retrieve a MAA token. The MAA API requires that the request carries
+		// the certificate chain endording the signing key of the hardware attestation.
+		// Hence, these APIs are exposed only if the platform certificate information
+		// has been provided at startup time.
+		if certState.CertFetcher.Endpoint != "" || certString != "" {
+			server.POST("/attest/maa", postMAAAttest)
+			server.POST("/key/release", postKeyRelease)
+		}
 
-	// the implementation of attest/maa and key/release APIs call MAA service
-	// to retrieve a MAA token. The MAA API requires that the request carries
-	// the certificate chain endording the signing key of the hardware attestation.
-	// Hence, these APIs are exposed only if the platform certificate information
-	// has been provided at startup time.
-	if certState.CertFetcher.Endpoint != "" || certString != "" {
-		r.POST("/attest/maa", postMAAAttest)
-		r.POST("/key/release", postKeyRelease)
+		ready = true
 	}
-
-	ready = true
-
-	return r
+	return server
 }
