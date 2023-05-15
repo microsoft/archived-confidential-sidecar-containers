@@ -128,5 +128,5 @@ func main() {
 		Tcbm:        thimTcbm,
 	}
 
-	http_listener.SetupServer(&certState, &info.Identity, &EncodedUvmInformation).Run(url)
+	http_listener.SetupServer(&certState, &info.Identity, &EncodedUvmInformation, url)
 }
