@@ -10,16 +10,8 @@ import (
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/skr"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
-
-// Due to protocol differences, context info for key/maa token release such as
-// AKV or MAA endpoint can be passed in various format. This interface allows
-// different protocols to implement its own logic for extracting these info
-type TokenKeyRelease interface {
-	GetMAAInfo(interface{}) (*attest.MAA, []byte, error)
-	GetKeyReleaseInfo(interface{}) *skr.KeyBlob
-	GetRawAttestInfo(interface{}) ([]byte, []byte)
-}
 
 type GinServer struct {
 	server    *gin.Engine
@@ -161,4 +153,25 @@ func (gs *GinServer) GetRawAttestInfo(ctx interface{}) ([]byte, []byte) {
 	}
 
 	return inittimeDataBytes, runtimeDataBytes
+}
+
+func SetupServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation, url string) {
+	attest.ServerCertState = certState
+	common.WorkloadIdentity = identity
+	common.EncodedUvmInformation = uvmInfo
+	certString := uvmInfo.InitialCerts.VcekCert + uvmInfo.InitialCerts.CertificateChain
+	logrus.Debugf("Setting security policy to %s", uvmInfo.EncodedSecurityPolicy)
+	logrus.Debugf("Setting uvm reference to %s", uvmInfo.EncodedUvmReferenceInfo)
+	logrus.Debugf("Setting platform certs to %s", certString)
+
+	ginServer := NewGinServer()
+	server := NewServer(ginServer)
+	ginServer.skrServer = server
+	ginServer.server.GET("/status", ginServer.GetStatus)
+	ginServer.server.POST("/attest/raw", ginServer.RawAttestInfo)
+	ginServer.server.POST("/attest/maa", ginServer.MaaAttest)
+	ginServer.server.POST("/key/release", ginServer.KeyReleaseInfo)
+	server.ready = true
+
+	ginServer.server.Run(url)
 }

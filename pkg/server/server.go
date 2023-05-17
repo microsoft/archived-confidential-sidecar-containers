@@ -8,15 +8,24 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Server struct {
-	tokenRelease TokenKeyRelease
-	ready        bool
+// Due to protocol differences, context info for key/maa token release such as
+// AKV or MAA endpoint can be passed in various format. This interface allows
+// different protocols to implement its own logic for extracting these info
+type UnderlyingServer interface {
+	GetMAAInfo(interface{}) (*attest.MAA, []byte, error)
+	GetKeyReleaseInfo(interface{}) *skr.KeyBlob
+	GetRawAttestInfo(interface{}) ([]byte, []byte)
 }
 
-func NewServer(tr TokenKeyRelease) *Server {
+type Server struct {
+	underlyingServer UnderlyingServer
+	ready            bool
+}
+
+func NewServer(s UnderlyingServer) *Server {
 	return &Server{
-		tokenRelease: tr,
-		ready:        false,
+		underlyingServer: s,
+		ready:            false,
 	}
 }
 
@@ -99,25 +108,4 @@ func (s *Server) postRawAttest(inittimeDataBytes []byte, runtimeDataBytes []byte
 
 func (s *Server) pollStatus() bool {
 	return s.ready
-}
-
-func SetupServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation, url string) {
-	attest.ServerCertState = certState
-	common.WorkloadIdentity = identity
-	common.EncodedUvmInformation = uvmInfo
-	certString := uvmInfo.InitialCerts.VcekCert + uvmInfo.InitialCerts.CertificateChain
-	logrus.Debugf("Setting security policy to %s", uvmInfo.EncodedSecurityPolicy)
-	logrus.Debugf("Setting uvm reference to %s", uvmInfo.EncodedUvmReferenceInfo)
-	logrus.Debugf("Setting platform certs to %s", certString)
-
-	ginServer := NewGinServer()
-	server := NewServer(ginServer)
-	ginServer.skrServer = server
-	ginServer.server.GET("/status", ginServer.GetStatus)
-	ginServer.server.POST("/attest/raw", ginServer.RawAttestInfo)
-	ginServer.server.POST("/attest/maa", ginServer.MaaAttest)
-	ginServer.server.POST("/key/release", ginServer.KeyReleaseInfo)
-	server.ready = true
-
-	ginServer.server.Run(url)
 }
