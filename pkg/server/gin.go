@@ -44,29 +44,37 @@ func (gs *GinServer) RawAttestInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"report": rawReport})
 }
 
-func (gs *GinServer) MaaAttest(c *gin.Context) {
-	maa, runtimeDataBytes, _ := gs.GetMAAInfo(c)
-	maaToken, err := gs.skrServer.postMAAAttest(maa, runtimeDataBytes)
-	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+func (gs *GinServer) RegisterCertStatePostMaaAttest(certState *attest.CertState) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		maa, runtimeDataBytes, _ := gs.GetMAAInfo(c)
+		maaToken, err := gs.skrServer.postMAAAttest(maa, certState, runtimeDataBytes)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		}
+		c.JSON(http.StatusOK, gin.H{"token": maaToken})
 	}
-	c.JSON(http.StatusOK, gin.H{"token": maaToken})
+
+	return fn
 }
 
-func (gs *GinServer) KeyReleaseInfo(c *gin.Context) {
-	skrKeyBlob := gs.GetKeyReleaseInfo(c)
-	jwKey, err := gs.skrServer.postKeyRelease(skrKeyBlob)
-	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+func (gs *GinServer) RegisterCertStatePostKeyRelease(certState *attest.CertState) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		skrKeyBlob := gs.GetKeyReleaseInfo(c)
+		jwKey, err := gs.skrServer.postKeyRelease(skrKeyBlob, certState)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		}
+
+		jwkJSONBytes, err := json.Marshal(jwKey)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
 	}
 
-	jwkJSONBytes, err := json.Marshal(jwKey)
-	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
+	return fn
 }
 
 func (gs *GinServer) GetKeyReleaseInfo(ctx interface{}) *skr.KeyBlob {
@@ -155,8 +163,7 @@ func (gs *GinServer) GetRawAttestInfo(ctx interface{}) ([]byte, []byte) {
 	return inittimeDataBytes, runtimeDataBytes
 }
 
-func SetupServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation, url string) {
-	attest.ServerCertState = certState
+func SetupGinServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation, url string) {
 	common.WorkloadIdentity = identity
 	common.EncodedUvmInformation = uvmInfo
 	certString := uvmInfo.InitialCerts.VcekCert + uvmInfo.InitialCerts.CertificateChain
@@ -169,8 +176,9 @@ func SetupServer(certState *attest.CertState, identity *common.Identity, uvmInfo
 	ginServer.skrServer = server
 	ginServer.server.GET("/status", ginServer.GetStatus)
 	ginServer.server.POST("/attest/raw", ginServer.RawAttestInfo)
-	ginServer.server.POST("/attest/maa", ginServer.MaaAttest)
-	ginServer.server.POST("/key/release", ginServer.KeyReleaseInfo)
+	ginServer.server.POST("/attest/maa", ginServer.RegisterCertStatePostMaaAttest(certState))
+	ginServer.server.POST("/key/release", ginServer.RegisterCertStatePostKeyRelease(certState))
+
 	server.ready = true
 
 	ginServer.server.Run(url)

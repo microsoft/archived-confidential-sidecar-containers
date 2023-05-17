@@ -128,5 +128,5 @@ func main() {
 		Tcbm:        thimTcbm,
 	}
 
-	server.SetupServer(&certState, &info.Identity, &EncodedUvmInformation, url)
+	server.SetupGinServer(&certState, &info.Identity, &EncodedUvmInformation, url)
 }

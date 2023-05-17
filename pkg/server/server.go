@@ -22,9 +22,9 @@ type Server struct {
 	ready            bool
 }
 
-func NewServer(s UnderlyingServer) *Server {
+func NewServer(server UnderlyingServer) *Server {
 	return &Server{
-		underlyingServer: s,
+		underlyingServer: server,
 		ready:            false,
 	}
 }
@@ -63,8 +63,8 @@ type KeyReleaseData struct {
 //   - MAAEndpoint is the uri to the Microsoft Azure Attestation service endpoint which
 //     will author and sign the attestation token
 
-func (s *Server) postMAAAttest(maa *attest.MAA, runtimeDataBytes []byte) (string, error) {
-	maaToken, err := attest.ServerCertState.Attest(*maa, runtimeDataBytes, *common.EncodedUvmInformation)
+func (s *Server) postMAAAttest(maa *attest.MAA, serverCertState *attest.CertState, runtimeDataBytes []byte) (string, error) {
+	maaToken, err := serverCertState.Attest(*maa, runtimeDataBytes, *common.EncodedUvmInformation)
 	if err != nil {
 		return "", err
 	}
@@ -81,8 +81,8 @@ func (s *Server) postMAAAttest(maa *attest.MAA, runtimeDataBytes []byte) (string
 //     SKR policy when the secret was imported to the AKV.
 //   - KID is the key identifier of the secret to be retrieved.
 
-func (s *Server) postKeyRelease(skrKeyBlob *skr.KeyBlob) (_ jwk.Key, err error) {
-	jwKey, err := skr.SecureKeyRelease(*common.WorkloadIdentity, *attest.ServerCertState, *skrKeyBlob, *common.EncodedUvmInformation)
+func (s *Server) postKeyRelease(skrKeyBlob *skr.KeyBlob, serverCertState *attest.CertState) (_ jwk.Key, err error) {
+	jwKey, err := skr.SecureKeyRelease(*common.WorkloadIdentity, *serverCertState, *skrKeyBlob, *common.EncodedUvmInformation)
 	if err != nil {
 		return nil, err
 	}
