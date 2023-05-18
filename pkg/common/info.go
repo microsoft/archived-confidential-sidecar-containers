@@ -22,11 +22,6 @@ import (
 
 const GenerateTestData = false
 
-var (
-	WorkloadIdentity      *Identity
-	EncodedUvmInformation *UvmInformation
-)
-
 // format of the json provided to the UVM by hcsshim. Comes from the THIM endpoint
 // and is a base64 encoded json string
 type THIMCerts struct {

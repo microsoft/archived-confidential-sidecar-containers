@@ -11,9 +11,10 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Microsoft/confidential-sidecar-containers/internal/httpginendpoints"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/attest"
 	"github.com/Microsoft/confidential-sidecar-containers/pkg/common"
-	"github.com/Microsoft/confidential-sidecar-containers/pkg/server"
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
@@ -128,5 +129,21 @@ func main() {
 		Tcbm:        thimTcbm,
 	}
 
-	server.SetupGinServer(&certState, &info.Identity, &EncodedUvmInformation, url)
+	setupServer(&certState, &info.Identity, &EncodedUvmInformation, url)
+}
+
+func setupServer(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation, url string) {
+	certString := uvmInfo.InitialCerts.VcekCert + uvmInfo.InitialCerts.CertificateChain
+	logrus.Debugf("Setting security policy to %s", uvmInfo.EncodedSecurityPolicy)
+	logrus.Debugf("Setting uvm reference to %s", uvmInfo.EncodedUvmReferenceInfo)
+	logrus.Debugf("Setting platform certs to %s", certString)
+
+	server := gin.Default()
+	server.Use(httpginendpoints.ApiMiddleware(certState, identity, uvmInfo))
+	server.GET("/status", httpginendpoints.GetStatus)
+	server.POST("/attest/raw", httpginendpoints.PostRawAttest)
+	server.POST("/attest/maa", httpginendpoints.PostMAAAttest)
+	server.POST("/key/release", httpginendpoints.PostKeyRelease)
+	server.Run(url)
+	httpginendpoints.SetServerReady()
 }
