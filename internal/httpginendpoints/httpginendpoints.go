@@ -55,7 +55,7 @@ func GetStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Status NOT OK"})
 }
 
-// postRawAttest retrieves a hardware attestation report signed by the
+// PostRawAttest retrieves a hardware attestation report signed by the
 // Platform Security Processor and which encodes the hash digest of
 // the request's RuntimeData in the attestation's ReportData
 //
