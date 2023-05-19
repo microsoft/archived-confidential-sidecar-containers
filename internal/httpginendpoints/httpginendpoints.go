@@ -98,7 +98,7 @@ func PostRawAttest(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"report": rawReport})
 }
 
-// postMAAAttest retrieves an attestation token issued by Microsoft Azure Attestation
+// PostMAAAttest retrieves an attestation token issued by Microsoft Azure Attestation
 // service which encodes the request's RuntimeData as a runtime claim
 //
 //   - RuntimeData is expected to be a base64-standard-encoded string
