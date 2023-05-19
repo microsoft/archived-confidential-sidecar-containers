@@ -150,7 +150,7 @@ func PostMAAAttest(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": maaToken})
 }
 
-// postKeyRelease retrieves a secret previously imported to Azure Key Vault
+// PostKeyRelease retrieves a secret previously imported to Azure Key Vault
 //
 //   - AKVEndpoint is the uri to the key vault from which the secret will be retrieved
 //   - MAAEndpoint is the uri to the Microsoft Azure Attestation service endpoint which
