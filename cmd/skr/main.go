@@ -139,7 +139,7 @@ func setupServer(certState *attest.CertState, identity *common.Identity, uvmInfo
 	logrus.Debugf("Setting platform certs to %s", certString)
 
 	server := gin.Default()
-	server.Use(httpginendpoints.ApiMiddleware(certState, identity, uvmInfo))
+	server.Use(httpginendpoints.RegisterGlobalStates(certState, identity, uvmInfo))
 	server.GET("/status", httpginendpoints.GetStatus)
 	server.POST("/attest/raw", httpginendpoints.PostRawAttest)
 	server.POST("/attest/maa", httpginendpoints.PostMAAAttest)

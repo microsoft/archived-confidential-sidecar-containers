@@ -220,7 +220,7 @@ func PostKeyRelease(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"key": string(jwkJSONBytes)})
 }
 
-func ApiMiddleware(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation) gin.HandlerFunc {
+func RegisterGlobalStates(certState *attest.CertState, identity *common.Identity, uvmInfo *common.UvmInformation) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("certState", certState)
 		c.Set("identity", identity)
