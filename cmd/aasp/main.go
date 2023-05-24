@@ -464,8 +464,10 @@ func main() {
 	}
 
 	url := *hostname + ":" + *httpport
+	//start http server
 	go setupServer(&ServerCertState, &azure_info.Identity, &EncodedUvmInformation, url)
 
+	//start grpc server
 	s := grpc.NewServer()
 	keyprovider.RegisterKeyProviderServiceServer(s, &server{})
 	reflection.Register(s)
