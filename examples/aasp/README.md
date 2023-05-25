@@ -29,9 +29,12 @@ You can follow the installation instructions for Azure CLI [here](https://learn.
 
 Users must have a working maa endpoint to interact with the mhsm.
 
-Users must build their own AASP container image and an image that allows users to issue grpcurl commands. 
-These two images can be built using the existing Dockerfiles: [Dockerfile.build](../../docker/aasp/Dockerfile.build) and [Dockerfile.sample](../../docker/aasp/Dockerfile.sample) respectively. 
-To build the images, cd into the directory of these Dockerfiles and run the following commands:
+In order to use grpcurl to call the exposed grpc APIs and unwrap secrets, users must build the following two images: 
+
+1. The `AASP container` image that hosts grpc server. See [Dockerfile.build](../../docker/aasp/Dockerfile.build)
+2. An `sample-unwrap container` image that has grpcurl installed and allows users to unwrap secrets. [Dockerfile.sample](../../docker/aasp/Dockerfile.sample)
+
+These two images can be built using the existing Dockerfiles above. To build the images, cd into the directory of these Dockerfiles and run the following commands:
 
 ```
 cd ../../docker/aasp
@@ -57,7 +60,7 @@ Depending on the operating system, make sure the end of line sequence(LF vs CRLF
 
 `MANAGED_IDENTITY` has the following format: 
 ```
-/subscriptions/subscription-id/resourceGroups/resource_group_name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/msi
+/subscriptions/<subscription-id>/resourceGroups/<resource_group_name>/providers/Microsoft.ManagedIdentity/<userAssignedIdentities>/msi
 ```
 `<key-name>`: just the name of the key such as `samplekey`
 
