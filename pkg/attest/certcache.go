@@ -26,7 +26,7 @@ const (
 	AzureCertCacheRequestURITemplate = "https://%s/%s/certificates/%s/%s?%s"
 	AmdVCEKRequestURITemplate        = "https://%s/%s/%s?ucodeSPL=%d&snpSPL=%d&teeSPL=%d&blSPL=%d"
 	AmdCertChainRequestURITemplate   = "https://%s/%s/cert_chain"
-	LocalTHIMUriTemplate             = "http://%s" // To-Do update once we know what this looks like
+	LocalTHIMUriTemplate             = "https://%s" // To-Do update once we know what this looks like
 )
 
 const (
@@ -166,7 +166,7 @@ func (certFetcher CertFetcher) retrieveCertChain(chipID string, reportedTCB uint
 		case "LocalTHIM":
 			uri = fmt.Sprintf(LocalTHIMUriTemplate, certFetcher.Endpoint)
 			// local THIM cert cache endpoint returns THIM Certs object
-			httpResponse, err := common.HTTPGetRequest(uri, true)
+			httpResponse, err := common.HTTPGetRequest(uri, false)
 			if err != nil {
 				return nil, thimTcbm, errors.Wrapf(err, "certcache http get request failed")
 			}
