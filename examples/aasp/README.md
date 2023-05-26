@@ -38,8 +38,11 @@ These two images can be built using the existing Dockerfiles above. To build the
 
 ```
 cd ../../docker/aasp
-docker build -f Dockerfile.build . 
-docker build -f Dockerfile.sample .
+
+export AASP_IMAGE=<aasp-image-name>
+export SAMPLE_UNWRAP_IMAGE=<sample-unwrap-image-name>
+docker build -t $AASP_IMAGE -f Dockerfile.build . 
+docker build -t $SAMPLE_UNWRAP_IMAGE -f Dockerfile.sample .
 
 ```
 
@@ -113,13 +116,18 @@ Once you can run a sample pod with SEV-SNP support and cloud-api-adaptor.
 You can run a sample deployment of a confidential pod with the AASP container and a container that can invokes the secret provisioning API of the AASP container. Use the following [sample pod yaml file](aasp-sample.yaml) to run the pod. But create an image pull secret first with the following command. 
 
 ```
-kubectl create secret docker-registry <secret-name> \
+export $ACR_SECRET=<secret-name>
+kubectl create secret docker-registry $ACR_SECRET \
     --namespace <namespace> \
     --docker-server=<REGISTRY_NAME>.azurecr.io \
     --docker-username=<appId> \
     --docker-password=<password>
+
+envsubst < aasp-sample-template.yaml > aasp-sample.yaml
+
+kubectl apply -f aasp-sample.yaml 
 ```
-Replace the <image> and <imagePullSecrets> with your own build image and image pull secret. 
+
 Issue the following command to shell into the sample-unwrap container and issue grpcurl commands: 
 
 ```

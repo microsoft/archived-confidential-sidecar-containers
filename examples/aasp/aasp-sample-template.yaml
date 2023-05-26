@@ -5,7 +5,7 @@ metadata:
 spec:
   runtimeClassName: kata
   containers:
-  - image: <aasp-image>
+  - image: $AASP_IMAGE
     imagePullPolicy: Always
     name: aasp
     command: [/bin/aasp]
@@ -19,7 +19,7 @@ spec:
       name: common
     securityContext:
       privileged: true
-  - image: <container-image-with-grpcurl>
+  - image: $SAMPLE_UNWRAP_IMAGE
     imagePullPolicy: Always
     name: sample-unwrap
     command: ["/bin/sh","-c"]
@@ -28,7 +28,7 @@ spec:
     - mountPath: /common
       name: common
   imagePullSecrets:
-    - name: acr-secret
+    - name: $ACR_SECRET
   volumes:
   - name: dev-sev
     hostPath:
