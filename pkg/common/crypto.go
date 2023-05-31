@@ -9,9 +9,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"math/big"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math/big"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
@@ -86,16 +87,12 @@ func RSAPrivateKeyFromJWK(jwKey *jwk.Key) (*rsa.PrivateKey, error) {
 		return nil, status.Errorf(codes.Internal, "Released key cannot be marshalled into bytes: %v", err)
 	}
 
-	//TODO: remove DP, DQ and QI because they are not needed for decryption
 	var jwkData struct {
-		N  string `json:"n"`
-		E  string `json:"e"`
-		D  string `json:"d"`
-		P  string `json:"p"`
-		Q  string `json:"q"`
-		DP string `json:"dp"`
-		DQ string `json:"dq"`
-		QI string `json:"qi"`
+		N string `json:"n"`
+		E string `json:"e"`
+		D string `json:"d"`
+		P string `json:"p"`
+		Q string `json:"q"`
 	}
 
 	if err := json.Unmarshal(jwkJSONBytes, &jwkData); err != nil {
