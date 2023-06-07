@@ -47,6 +47,7 @@ func main() {
 	logFile := flag.String("logfile", "", "Logging Target: An optional file name/path. Omit for console output.")
 	blockSize := flag.Int("blocksize", 512, "Size of a cache block in KiB")
 	numBlocks := flag.Int("numblocks", 32, "Number of cache blocks")
+	readOnly := flag.String("readOnly", "true", "Read only file system")
 
 	flag.Usage = usage
 
@@ -89,6 +90,11 @@ func main() {
 		fmt.Printf("The private attribute needs to be true or false")
 	}
 
+	readOnlyBool, err := strconv.ParseBool(*readOnly)
+	if err != nil {
+		fmt.Printf("The readOnly attribute needs to be true or false")
+	}
+
 	if parseError {
 		usage()
 		os.Exit(1)
@@ -122,8 +128,9 @@ func main() {
 	logrus.Debugf("   Log File:    %s", *logFile)
 	logrus.Debugf("   Block Size:  %d KiB", *blockSize)
 	logrus.Debugf("   Num. Blocks: %d", *numBlocks)
+	logrus.Debugf("   ReadOnly:    %s", *readOnly)
 
-	if err := filemanager.InitializeCache(*blockSize*1024, *numBlocks); err != nil {
+	if err := filemanager.InitializeCache(*blockSize*1024, *numBlocks, readOnlyBool); err != nil {
 		logrus.Fatalf("Failed to initialize cache: " + err.Error())
 	}
 
@@ -156,7 +163,7 @@ func main() {
 	}
 
 	logrus.Infof("Setting up FUSE...")
-	err = FuseSetup(*mountPoint)
+	err = FuseSetup(*mountPoint, readOnlyBool)
 	if err != nil {
 		logrus.Fatalf("FUSE error: " + err.Error())
 	}

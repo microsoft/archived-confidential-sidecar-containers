@@ -12,19 +12,32 @@ import (
 	"bazil.org/fuse/fs"
 	"github.com/Microsoft/confidential-sidecar-containers/cmd/azmount/filemanager"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // For more information about the library used to set up the FUSE filesystem:
 //
 //     https://github.com/bazil/fuse
 
-func FuseSetup(mountpoint string) error {
-	c, err := fuse.Mount(
-		mountpoint,
-		fuse.FSName("azure_filesystem"),
-		fuse.Subtype("azurefs"),
-		fuse.ReadOnly(),
-	)
+func FuseSetup(mountpoint string, readOnly bool) error {
+
+	var c *fuse.Conn
+	var err error
+	if readOnly {
+		c, err = fuse.Mount(
+			mountpoint,
+			fuse.FSName("azure_filesystem"),
+			fuse.Subtype("azurefs"),
+			fuse.ReadOnly(),
+		)
+	} else {
+		c, err = fuse.Mount(
+			mountpoint,
+			fuse.FSName("azure_filesystem"),
+			fuse.Subtype("azurefs"),
+		)
+	}
+
 	if err != nil {
 		return errors.Wrapf(err, "can't start fuse")
 	}
@@ -32,7 +45,7 @@ func FuseSetup(mountpoint string) error {
 
 	// The execution flow stops here. This function is never left until there is
 	// a crash or the filesystem is unmounted by the user.
-	err = fs.Serve(c, FS{})
+	err = fs.Serve(c, FS{readOnly: readOnly})
 	if err != nil {
 		return errors.Wrapf(err, "can't serve fuse")
 	}
@@ -40,24 +53,28 @@ func FuseSetup(mountpoint string) error {
 }
 
 // FS implements the file system.
-type FS struct{}
+type FS struct {
+	readOnly bool
+}
 
-func (FS) Root() (fs.Node, error) {
-	return Dir{}, nil
+func (fs FS) Root() (fs.Node, error) {
+	return Dir{readOnly: fs.readOnly}, nil
 }
 
 // Dir implements both Node and Handle for the root directory.
-type Dir struct{}
+type Dir struct {
+	readOnly bool
+}
 
 func (Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = 1
-	a.Mode = os.ModeDir | 0o555
+	a.Mode = os.ModeDir | 0o777
 	return nil
 }
 
-func (Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	if name == "data" {
-		return File{}, nil
+		return File{readOnly: d.readOnly}, nil
 	}
 	return nil, syscall.ENOENT
 }
@@ -71,11 +88,17 @@ func (Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 // File implements both Node and Handle for the file.
-type File struct{}
+type File struct {
+	readOnly bool
+}
 
-func (File) Attr(ctx context.Context, a *fuse.Attr) error {
+func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = 2
-	a.Mode = 0o444
+	if f.readOnly {
+		a.Mode = 0o444
+	} else {
+		a.Mode = 0o777
+	}
 	a.Size = uint64(filemanager.GetFileSize())
 	return nil
 }
@@ -111,5 +134,70 @@ func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadRe
 
 	err, data := filemanager.GetBytes(int64(offset), int64(to))
 	resp.Data = data
+	return err
+}
+
+func (f *File) ReadAll(ctx context.Context) ([]byte, error) {
+	logrus.Printf("File ReadAll called")
+	return nil, nil
+}
+
+func (Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+	logrus.Printf("Create called with filename: ", req.Name)
+	return nil, nil, nil
+}
+
+func (Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+	logrus.Printf("Mkdir called with name: ", req.Name)
+	return nil, nil
+}
+
+func (Dir) Mknod(ctx context.Context, req *fuse.MknodRequest) (fs.Node, error) {
+	logrus.Printf("Mknod called with name: ", req.Name)
+	return nil, nil
+}
+
+func (Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
+	logrus.Printf("Remove called with filename: ", req.Name)
+	return nil
+}
+
+func (Dir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	logrus.Printf("Setattr called for directory ")
+	return nil
+}
+
+func (File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	logrus.Printf("Setattr called for file ")
+	return nil
+}
+
+func (f File) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	logrus.Printf("File Write called: Size: ", len(req.Data))
+	logrus.Printf("File Write called: Offset: ", req.Offset)
+
+	if req.Offset < 0 {
+		// Before beginning of file.
+		return fuse.Errno(syscall.EINVAL)
+	}
+
+	offset := uint64(req.Offset)
+	fileSize := uint64(filemanager.GetFileSize())
+
+	if offset >= fileSize {
+		// Beyond end of file.
+		return nil
+	}
+
+	to := min(fileSize, offset+uint64(len(req.Data)))
+	if to == offset {
+		return nil
+	}
+
+	err := filemanager.SetBytes(int64(offset), req.Data)
+	if err == nil {
+		resp.Size = len(req.Data)
+	}
+	logrus.Printf("File Write returning %d:%d", err, resp.Size)
 	return err
 }

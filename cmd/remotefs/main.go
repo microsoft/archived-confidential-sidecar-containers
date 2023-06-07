@@ -43,7 +43,9 @@ type AzureFilesystem struct {
 	KeyBlob skr.KeyBlob `json:"key,omitempty"`
 	// This is a testing key hexstring encoded to be used against the filesystem. This should
 	// be used only for testing.
-	RawKeyHexString string `json:"raw_key, omitempty"`
+	RawKeyHexString string `json:"raw_key,omitempty"`
+	// This is a flag specifying if this file system is read only
+	ReadOnly bool `json:"read_only"`
 }
 
 func usage() {

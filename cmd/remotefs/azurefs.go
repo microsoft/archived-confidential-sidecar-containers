@@ -58,7 +58,7 @@ var (
 
 // azmountRun starts azmount with the specified arguments, and leaves it running
 // in the background.
-func azmountRun(imageLocalFolder string, azureImageUrl string, azureImageUrlPrivate bool, azmountLogFile string, cacheBlockSize string, numBlocks string) error {
+func azmountRun(imageLocalFolder string, azureImageUrl string, azureImageUrlPrivate bool, azmountLogFile string, cacheBlockSize string, numBlocks string, readOnly bool) error {
 
 	identityJson, err := json.Marshal(Identity)
 	if err != nil {
@@ -69,7 +69,7 @@ func azmountRun(imageLocalFolder string, azureImageUrl string, azureImageUrlPriv
 	encodedIdentity := base64.StdEncoding.EncodeToString(identityJson)
 
 	logrus.Debugf("Starting azmount: %s %s %s %s %s KB", imageLocalFolder, azureImageUrl, strconv.FormatBool(azureImageUrlPrivate), azmountLogFile, cacheBlockSize)
-	cmd := exec.Command("/bin/azmount", "-mountpoint", imageLocalFolder, "-url", azureImageUrl, "-private", strconv.FormatBool(azureImageUrlPrivate), "-identity", encodedIdentity, "-logfile", azmountLogFile, "-blocksize", cacheBlockSize, "-numblocks", numBlocks)
+	cmd := exec.Command("/bin/azmount", "-mountpoint", imageLocalFolder, "-url", azureImageUrl, "-private", strconv.FormatBool(azureImageUrlPrivate), "-identity", encodedIdentity, "-logfile", azmountLogFile, "-blocksize", cacheBlockSize, "-numblocks", numBlocks, "-readOnly", strconv.FormatBool(readOnly))
 	if err := cmd.Start(); err != nil {
 		errorString := "azmount failed to start"
 		logrus.WithError(err).Error(errorString)
@@ -104,7 +104,7 @@ func cryptsetupOpen(source string, deviceName string, keyFilePath string) error 
 	return cryptsetupCommand(openArgs)
 }
 
-func mountAzureFile(tempDir string, index int, azureImageUrl string, azureImageUrlPrivate bool, cacheBlockSize string, numBlocks string) (string, error) {
+func mountAzureFile(tempDir string, index int, azureImageUrl string, azureImageUrlPrivate bool, cacheBlockSize string, numBlocks string, readOnly bool) (string, error) {
 
 	imageLocalFolder := filepath.Join(tempDir, fmt.Sprintf("%d", index))
 	if err := osMkdirAll(imageLocalFolder, 0755); err != nil {
@@ -121,7 +121,7 @@ func mountAzureFile(tempDir string, index int, azureImageUrl string, azureImageU
 	// to requests from the kernel, and it gets stuck in the loop that serves
 	// requests, so it is needed to run it in a different process so that the
 	// execution can continue in this one.
-	_azmountRun(imageLocalFolder, azureImageUrl, azureImageUrlPrivate, azmountLogFile, cacheBlockSize, numBlocks)
+	_azmountRun(imageLocalFolder, azureImageUrl, azureImageUrlPrivate, azmountLogFile, cacheBlockSize, numBlocks, readOnly)
 
 	// Wait until the file is available
 	count := 0
@@ -283,7 +283,7 @@ func containerMountAzureFilesystem(tempDir string, index int, fs AzureFilesystem
 	numBlocks := "32"
 
 	// 1) Mount remote image
-	imageLocalFile, err := mountAzureFile(tempDir, index, fs.AzureUrl, fs.AzureUrlPrivate, cacheBlockSize, numBlocks)
+	imageLocalFile, err := mountAzureFile(tempDir, index, fs.AzureUrl, fs.AzureUrlPrivate, cacheBlockSize, numBlocks, fs.ReadOnly)
 	if err != nil {
 		return errors.Wrapf(err, "failed to mount remote file: %s", fs.AzureUrl)
 	}
@@ -333,7 +333,11 @@ func containerMountAzureFilesystem(tempDir string, index int, fs AzureFilesystem
 	logrus.Debugf("Mounting to: %s", tempMountFolder)
 
 	var flags uintptr = unix.MS_RDONLY
-	data := "noload"
+	var data string
+	if fs.ReadOnly {
+		flags = unix.MS_RDONLY
+		data = "noload"
+	}
 
 	if err := osMkdirAll(tempMountFolder, 0755); err != nil {
 		return errors.Wrapf(err, "mkdir failed: %s", tempMountFolder)

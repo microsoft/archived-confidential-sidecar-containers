@@ -34,16 +34,31 @@ type FileManager struct {
 
 	// Function used to access a block from the raw filesystem image
 	downloadBlock func(blockIndex int64) (error, []byte)
+
+	// Function used to write block to raw filesystem image
+	uploadBlock func(blockIndex int64, data []byte) error
 }
 
 // Global state of the file manager
 var fm FileManager
 
-func InitializeCache(blockSize int, numBlocks int) error {
+func onEvict(key interface{}, value interface{}) {
+	logrus.Printf("Evict called for blockIndex ", key)
+}
+
+func InitializeCache(blockSize int, numBlocks int, readOnly bool) error {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
 
-	cache, err := lru.New(numBlocks)
+	var cache *lru.Cache
+	var err error
+
+	if readOnly {
+		cache, err = lru.New(numBlocks)
+	} else {
+		cache, err = lru.NewWithEvict(numBlocks, onEvict)
+	}
+
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize RAM cache")
 	}
@@ -145,4 +160,89 @@ func GetBytes(offset int64, to int64) (error, []byte) {
 
 	err, dat := GetBlock(blockIndex)
 	return err, dat[offsetInsideBlock:toInsideBlock]
+}
+
+func SetBlock(offset int64, data []byte) error {
+	fm.mutex.Lock()
+	defer fm.mutex.Unlock()
+
+	blockIndex := offset / fm.blockSize
+	offsetInsideBlock := offset - (blockIndex * fm.blockSize)
+	toInsideBlock := offsetInsideBlock + int64(len(data))
+
+	logrus.Printf("SetBlock %d %d:%d", blockIndex, offsetInsideBlock, toInsideBlock)
+
+	// Check bounds
+	if blockIndex < 0 {
+		errorString := fmt.Sprintf("invalid block index (%d)", blockIndex)
+		return errors.New(errorString)
+	}
+
+	maxIndex := (fm.contentLength - 1) / fm.blockSize
+	if blockIndex > maxIndex {
+		errorString := fmt.Sprintf("block index over limit (%d > %d)", blockIndex, maxIndex)
+		return errors.New(errorString)
+	}
+
+	// Check if this block is in the cache
+	var content *[]byte
+	i, ok := fm.cache.Get(blockIndex)
+	if ok {
+		logrus.Printf("Found block %d in cache", blockIndex)
+
+		content, ok = i.(*[]byte)
+		if !ok {
+			logrus.Printf("Cast failed for block ", blockIndex)
+			return fmt.Errorf("cast failed for block %d", blockIndex)
+		}
+	} else {
+		// If it isn't in the cache, download it
+		logrus.Printf("Downloading block %d", blockIndex)
+
+		err, dat := fm.downloadBlock(blockIndex)
+		if err != nil {
+			return errors.Wrapf(err, "can't download block")
+		}
+
+		logrus.Printf("Fetched block %d", blockIndex)
+		content = &dat
+	}
+
+	copy((*content)[offsetInsideBlock:], data)
+	fm.cache.Add(blockIndex, content)
+
+	return nil
+}
+
+func SetBytes(offset int64, data []byte) error {
+	if offset < 0 {
+		errorString := fmt.Sprintf("GetBytes(%d): negative pointer", offset)
+		return errors.New(errorString)
+	}
+
+	var to int64 = offset + int64(len(data))
+
+	// If going over the end of the file, return fewer bytes than requested
+	if to > fm.contentLength {
+		to = fm.contentLength
+	}
+
+	// The end must go after the start
+	if offset > to {
+		errorString := fmt.Sprintf("GetBytes(%d, %d): invalid pointers", offset, to)
+		return errors.New(errorString)
+	}
+
+	// This function is always asked to write 4KB aligned to a 4KB boundary, so
+	// there is never a risk of having to cross block boundaries. However,
+	// check that this is actually true in case that changes in the future.
+	startBlockIndex := offset / fm.blockSize
+	endBlockIndex := (to - 1) / fm.blockSize
+	if startBlockIndex != endBlockIndex {
+		errorString := fmt.Sprintf("SetBytes(%d, %d): unsupported", offset, to)
+		return errors.New(errorString)
+	}
+
+	err := SetBlock(offset, data)
+	return err
 }
