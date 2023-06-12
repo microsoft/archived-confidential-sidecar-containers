@@ -43,7 +43,23 @@ type FileManager struct {
 var fm FileManager
 
 func onEvict(key interface{}, value interface{}) {
-	logrus.Printf("Evict called for blockIndex ", key)
+	logrus.Printf("Evict called for blockIndex %d", key)
+
+	blockIndex := key.(int64)
+	bytes, ok := value.(*[]byte)
+	if !ok {
+		panic(fmt.Errorf("cast failed for block"))
+	}
+
+	// If it isn't in the cache, download it
+	logrus.Printf("Uploading block %d", blockIndex)
+
+	err := fm.uploadBlock(blockIndex, *bytes)
+	if err != nil {
+		panic(errors.Wrapf(err, "can't upload block %d", blockIndex))
+	}
+
+	logrus.Printf("Uploaded block %d", blockIndex)
 }
 
 func InitializeCache(blockSize int, numBlocks int, readOnly bool) error {
@@ -91,6 +107,8 @@ func GetBlock(blockIndex int64) (error, []byte) {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
 
+	logrus.Printf("GetBlock %d", blockIndex)
+
 	// Check bounds
 	if blockIndex < 0 {
 		errorString := fmt.Sprintf("invalid block index (%d)", blockIndex)
@@ -112,6 +130,8 @@ func GetBlock(blockIndex int64) (error, []byte) {
 		}
 		return nil, *bytes
 	}
+
+	logrus.Printf("DownloadBlock %d", blockIndex)
 
 	// If it isn't in the cache, download it
 	err, dat := fm.downloadBlock(blockIndex)

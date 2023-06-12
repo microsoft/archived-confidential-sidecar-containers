@@ -119,8 +119,23 @@ func AzureSetup(urlString string, urlPrivate bool, identity common.Identity) err
 	fm.contentLength = getMetadata.ContentLength()
 	logrus.Infof("Size: %d bytes", fm.contentLength)
 
-	// Setup data downloader
+	// Setup data downloader and uploader
 	fm.downloadBlock = AzureDownloadBlock
+	fm.uploadBlock = AzureUploadBlock
+
+	return nil
+}
+
+func AzureUploadBlock(blockIndex int64, b []byte) (err error) {
+	bytesInBlock := GetBlockSize()
+	var offset int64 = blockIndex * bytesInBlock
+
+	r := bytes.NewReader(b)
+	put, err := fm.blobURL.UploadPages(fm.ctx, offset, r, azblob.PageBlobAccessConditions{},
+		nil, azblob.NewClientProvidedKeyOptions(nil, nil, nil))
+	if err != nil {
+		return errors.Wrapf(err, "can't upload block {}", put.ErrorCode())
+	}
 
 	return nil
 }

@@ -58,6 +58,7 @@ type FS struct {
 }
 
 func (fs FS) Root() (fs.Node, error) {
+	logrus.Printf("fs Root called readOnly?", fs.readOnly)
 	return Dir{readOnly: fs.readOnly}, nil
 }
 
@@ -67,12 +68,14 @@ type Dir struct {
 }
 
 func (Dir) Attr(ctx context.Context, a *fuse.Attr) error {
+	logrus.Printf("Dir Attr called")
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0o777
 	return nil
 }
 
 func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	logrus.Printf("Dir Lookup called with name %s", name)
 	if name == "data" {
 		return File{readOnly: d.readOnly}, nil
 	}
@@ -84,6 +87,7 @@ var dirDirs = []fuse.Dirent{
 }
 
 func (Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	logrus.Printf("Dir ReadDirAll called")
 	return dirDirs, nil
 }
 
@@ -93,6 +97,7 @@ type File struct {
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
+	logrus.Printf("File Attr called")
 	a.Inode = 2
 	if f.readOnly {
 		a.Mode = 0o444
@@ -111,6 +116,7 @@ func min(a, b uint64) uint64 {
 }
 
 func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	logrus.Printf("File Read called")
 	if req.Offset < 0 {
 		// Before beginning of file.
 		return fuse.Errno(syscall.EINVAL)
@@ -200,4 +206,10 @@ func (f File) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Writ
 	}
 	logrus.Printf("File Write returning %d:%d", err, resp.Size)
 	return err
+}
+
+func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	logrus.Printf("Fsync called: ", req.String())
+	filemanager.ClearCache()
+	return nil
 }
