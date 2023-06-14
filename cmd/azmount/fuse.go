@@ -12,7 +12,6 @@ import (
 	"bazil.org/fuse/fs"
 	"github.com/Microsoft/confidential-sidecar-containers/cmd/azmount/filemanager"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // For more information about the library used to set up the FUSE filesystem:
@@ -58,7 +57,6 @@ type FS struct {
 }
 
 func (fs FS) Root() (fs.Node, error) {
-	logrus.Printf("fs Root called readOnly?", fs.readOnly)
 	return Dir{readOnly: fs.readOnly}, nil
 }
 
@@ -68,14 +66,12 @@ type Dir struct {
 }
 
 func (Dir) Attr(ctx context.Context, a *fuse.Attr) error {
-	logrus.Printf("Dir Attr called")
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0o777
 	return nil
 }
 
 func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	logrus.Printf("Dir Lookup called with name %s", name)
 	if name == "data" {
 		return File{readOnly: d.readOnly}, nil
 	}
@@ -87,7 +83,6 @@ var dirDirs = []fuse.Dirent{
 }
 
 func (Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	logrus.Printf("Dir ReadDirAll called")
 	return dirDirs, nil
 }
 
@@ -97,7 +92,6 @@ type File struct {
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
-	logrus.Printf("File Attr called")
 	a.Inode = 2
 	if f.readOnly {
 		a.Mode = 0o444
@@ -116,7 +110,6 @@ func min(a, b uint64) uint64 {
 }
 
 func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	logrus.Printf("File Read called")
 	if req.Offset < 0 {
 		// Before beginning of file.
 		return fuse.Errno(syscall.EINVAL)
@@ -144,44 +137,34 @@ func (f File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadRe
 }
 
 func (f *File) ReadAll(ctx context.Context) ([]byte, error) {
-	logrus.Printf("File ReadAll called")
 	return nil, nil
 }
 
 func (Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
-	logrus.Printf("Create called with filename: ", req.Name)
 	return nil, nil, nil
 }
 
 func (Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
-	logrus.Printf("Mkdir called with name: ", req.Name)
 	return nil, nil
 }
 
 func (Dir) Mknod(ctx context.Context, req *fuse.MknodRequest) (fs.Node, error) {
-	logrus.Printf("Mknod called with name: ", req.Name)
 	return nil, nil
 }
 
 func (Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
-	logrus.Printf("Remove called with filename: ", req.Name)
 	return nil
 }
 
 func (Dir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	logrus.Printf("Setattr called for directory ")
 	return nil
 }
 
 func (File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	logrus.Printf("Setattr called for file ")
 	return nil
 }
 
 func (f File) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-	logrus.Printf("File Write called: Size: ", len(req.Data))
-	logrus.Printf("File Write called: Offset: ", req.Offset)
-
 	if req.Offset < 0 {
 		// Before beginning of file.
 		return fuse.Errno(syscall.EINVAL)
@@ -204,12 +187,10 @@ func (f File) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Writ
 	if err == nil {
 		resp.Size = len(req.Data)
 	}
-	logrus.Printf("File Write returning %d:%d", err, resp.Size)
 	return err
 }
 
 func (f File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	logrus.Printf("Fsync called: ", req.String())
 	filemanager.ClearCache()
 	return nil
 }
