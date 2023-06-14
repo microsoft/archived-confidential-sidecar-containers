@@ -332,7 +332,7 @@ func containerMountAzureFilesystem(tempDir string, index int, fs AzureFilesystem
 
 	logrus.Debugf("Mounting to: %s", tempMountFolder)
 
-	var flags uintptr = unix.MS_RDONLY
+	var flags uintptr
 	var data string
 	if fs.ReadOnly {
 		flags = unix.MS_RDONLY
