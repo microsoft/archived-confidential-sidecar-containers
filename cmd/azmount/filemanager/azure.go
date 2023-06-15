@@ -134,7 +134,7 @@ func AzureUploadBlock(blockIndex int64, b []byte) (err error) {
 	put, err := fm.blobURL.UploadPages(fm.ctx, offset, r, azblob.PageBlobAccessConditions{},
 		nil, azblob.NewClientProvidedKeyOptions(nil, nil, nil))
 	if err != nil {
-		return errors.Wrapf(err, "can't upload block {}", put.ErrorCode())
+		return errors.Wrapf(err, "can't upload block")
 	}
 
 	return nil
