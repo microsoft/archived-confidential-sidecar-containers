@@ -140,30 +140,6 @@ func (f *File) ReadAll(ctx context.Context) ([]byte, error) {
 	return nil, nil
 }
 
-func (Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
-	return nil, nil, nil
-}
-
-func (Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
-	return nil, nil
-}
-
-func (Dir) Mknod(ctx context.Context, req *fuse.MknodRequest) (fs.Node, error) {
-	return nil, nil
-}
-
-func (Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
-	return nil
-}
-
-func (Dir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	return nil
-}
-
-func (File) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	return nil
-}
-
 func (f File) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
 	if req.Offset < 0 {
 		// Before beginning of file.

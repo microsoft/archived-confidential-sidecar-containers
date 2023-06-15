@@ -11,7 +11,6 @@ import (
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type FileManager struct {
@@ -43,23 +42,16 @@ type FileManager struct {
 var fm FileManager
 
 func onEvict(key interface{}, value interface{}) {
-	logrus.Printf("Evict called for blockIndex %d", key)
-
 	blockIndex := key.(int64)
 	bytes, ok := value.(*[]byte)
 	if !ok {
 		panic(fmt.Errorf("cast failed for block"))
 	}
 
-	// If it isn't in the cache, download it
-	logrus.Printf("Uploading block %d", blockIndex)
-
 	err := fm.uploadBlock(blockIndex, *bytes)
 	if err != nil {
 		panic(errors.Wrapf(err, "can't upload block %d", blockIndex))
 	}
-
-	logrus.Printf("Uploaded block %d", blockIndex)
 }
 
 func InitializeCache(blockSize int, numBlocks int, readOnly bool) error {
@@ -107,8 +99,6 @@ func GetBlock(blockIndex int64) (error, []byte) {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
 
-	logrus.Printf("GetBlock %d", blockIndex)
-
 	// Check bounds
 	if blockIndex < 0 {
 		errorString := fmt.Sprintf("invalid block index (%d)", blockIndex)
@@ -131,15 +121,11 @@ func GetBlock(blockIndex int64) (error, []byte) {
 		return nil, *bytes
 	}
 
-	logrus.Printf("DownloadBlock %d", blockIndex)
-
 	// If it isn't in the cache, download it
 	err, dat := fm.downloadBlock(blockIndex)
 	if err != nil {
 		return errors.Wrapf(err, "can't download block"), []byte{}
 	}
-
-	logrus.Tracef("Fetched block %d", blockIndex)
 
 	// Save data to the cache
 	fm.cache.Add(blockIndex, &dat)
@@ -188,9 +174,6 @@ func SetBlock(offset int64, data []byte) error {
 
 	blockIndex := offset / fm.blockSize
 	offsetInsideBlock := offset - (blockIndex * fm.blockSize)
-	toInsideBlock := offsetInsideBlock + int64(len(data))
-
-	logrus.Printf("SetBlock %d %d:%d", blockIndex, offsetInsideBlock, toInsideBlock)
 
 	// Check bounds
 	if blockIndex < 0 {
@@ -208,23 +191,16 @@ func SetBlock(offset int64, data []byte) error {
 	var content *[]byte
 	i, ok := fm.cache.Get(blockIndex)
 	if ok {
-		logrus.Printf("Found block %d in cache", blockIndex)
-
 		content, ok = i.(*[]byte)
 		if !ok {
-			logrus.Printf("Cast failed for block ", blockIndex)
 			return fmt.Errorf("cast failed for block %d", blockIndex)
 		}
 	} else {
-		// If it isn't in the cache, download it
-		logrus.Printf("Downloading block %d", blockIndex)
-
 		err, dat := fm.downloadBlock(blockIndex)
 		if err != nil {
 			return errors.Wrapf(err, "can't download block")
 		}
 
-		logrus.Printf("Fetched block %d", blockIndex)
 		content = &dat
 	}
 
