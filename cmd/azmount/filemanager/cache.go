@@ -36,6 +36,9 @@ type FileManager struct {
 
 	// Function used to write block to raw filesystem image
 	uploadBlock func(blockIndex int64, data []byte) error
+
+	// Read-Only cache
+	readOnly bool
 }
 
 // Global state of the file manager
@@ -71,7 +74,7 @@ func InitializeCache(blockSize int, numBlocks int, readOnly bool) error {
 		return errors.Wrap(err, "failed to initialize RAM cache")
 	}
 	fm.cache = cache
-
+	fm.readOnly = readOnly
 	fm.blockSize = int64(blockSize)
 
 	return nil
@@ -93,6 +96,10 @@ func GetFileSize() int64 {
 
 func GetBlockSize() int64 {
 	return fm.blockSize
+}
+
+func IsReadOnly() bool {
+	return fm.readOnly
 }
 
 func GetBlock(blockIndex int64) (error, []byte) {

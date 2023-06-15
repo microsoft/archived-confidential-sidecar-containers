@@ -22,6 +22,7 @@ const (
 	BYTES_PER_128KB     = int64(128 * BYTES_PER_KB)
 	BYTES_PER_512KB     = int64(512 * BYTES_PER_KB)
 	BLOCK_SIZE          = BYTES_PER_KB * BYTES_PER_KB // 1024^2
+	NUM_BLOCKS          = 32
 	BASE_OFFSET         = 0
 	BLOCK2_OFFSET       = 2 * BLOCK_SIZE
 	BLOCK3_OFFSET       = 3 * BLOCK_SIZE
@@ -221,45 +222,36 @@ func Test_GetBlock_TestBounds(t *testing.T) {
 // TestMain funcion needs to generate a reference file so that the tests can
 // run.
 func DoAllTests(m *testing.M, readOnly bool) {
-	if err := InitializeCache(BLOCK_SIZE, 32, readOnly); err != nil {
+	if err := InitializeCache(BLOCK_SIZE, NUM_BLOCKS, readOnly); err != nil {
 		fmt.Printf("Failed to initialize cache: %s\n", err.Error())
-		//return 1
 	}
 
 	// Create temporary folder
 	tempDir, err := ioutil.TempDir("", "aztemp")
 	if err != nil {
 		fmt.Printf("Failed to create temp dir: %s\n", err.Error())
-		//return 1
 	}
 	defer os.RemoveAll(tempDir) // Remove folder at exit
 	fmt.Printf("Temporary directory: %s\n", tempDir)
 
 	// Generate the reference file inside the temporary folder so that it is
 	// deleted along the temporary folder at exit
-
 	referenceFile := path.Join(tempDir, "reference_file")
 
 	if err := GenerateReferenceFile(referenceFile); err != nil {
 		fmt.Printf("Failed to create reference file: %s\n", err.Error())
-		//return 1
 	}
 
-	if err = LocalSetup(referenceFile); err != nil {
+	if err = LocalSetup(referenceFile, readOnly); err != nil {
 		fmt.Printf("Local filesystem setup error: %s\n", err.Error())
-		//return 1
 	}
 
 	m.Run()
-
-	//return m.Run()
 }
 
 func TestMain(m *testing.M) {
-	// All the tests are in DoAllTests() so that all deferred functions are
-	// called when returning from there. They aren't called when the program
-	// ends because of a call to os.Exit().
+	// test read-only cache
 	DoAllTests(m, true)
+	// test read-write cache
 	DoAllTests(m, false)
-	//os.Exit(DoAllTests(m, true))
 }
