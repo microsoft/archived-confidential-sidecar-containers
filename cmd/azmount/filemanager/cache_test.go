@@ -254,7 +254,7 @@ func DoAllTests(m *testing.M) int {
 
 	logrus.SetLevel(logrus.TraceLevel)
 
-	if err := InitializeCache(1024*1024, 32); err != nil {
+	if err := InitializeCache(1024*1024, 32, true); err != nil {
 		fmt.Printf("Failed to initialize cache: %s\n", err.Error())
 		return 1
 	}
