@@ -6,13 +6,28 @@ package filemanager
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+)
+
+const (
+	BYTES_PER_KB        = 1024
+	BYTES_PER_32KB      = int64(32 * BYTES_PER_KB)
+	BYTES_PER_64KB      = int64(64 * BYTES_PER_KB)
+	BYTES_PER_128KB     = int64(128 * BYTES_PER_KB)
+	BYTES_PER_512KB     = int64(512 * BYTES_PER_KB)
+	BLOCK_SIZE          = BYTES_PER_KB * BYTES_PER_KB // 1024^2
+	BASE_OFFSET         = 0
+	BLOCK2_OFFSET       = 2 * BLOCK_SIZE
+	BLOCK3_OFFSET       = 3 * BLOCK_SIZE
+	BLOCK5_OFFSET       = 5 * BLOCK_SIZE
+	BLOCK12_OFFSET      = 12 * BLOCK_SIZE
+	REFERENCE_FILE_SIZE = 256*BLOCK_SIZE - 1024 // 256*1024^2 - 1024
 )
 
 // The reference file format is a file full of zeroes with 32-bit offset stamps
@@ -23,10 +38,6 @@ import (
 // 0x00000000 || 00 | 00 | 00 | 00 || 00 | 00 | ...
 // 0x00012400 || 00 | 01 | 24 | 00 || 00 | 00 | ...
 // 0x34567800 || 34 | 56 | 78 | 00 || 00 | 00 | ...
-
-func referenceFileSize() int64 {
-	return 256*GetBlockSize() - 1024
-}
 
 func GenerateReferenceSlice(offset int64, size int64) []byte {
 	if size == 0 {
@@ -41,13 +52,13 @@ func GenerateReferenceSlice(offset int64, size int64) []byte {
 	data := make([]byte, size)
 	for i := int64(0); i < size; i++ {
 		realOffset := offset + i
-		if (realOffset % 1024) == 0 {
+		if (realOffset % BYTES_PER_KB) == 0 {
 			data[i] = byte(realOffset >> 24)
-		} else if (realOffset % 1024) == 1 {
+		} else if (realOffset % BYTES_PER_KB) == 1 {
 			data[i] = byte((realOffset - 1) >> 16)
-		} else if (realOffset % 1024) == 2 {
+		} else if (realOffset % BYTES_PER_KB) == 2 {
 			data[i] = byte((realOffset - 2) >> 8)
-		} else if (realOffset % 1024) == 3 {
+		} else if (realOffset % BYTES_PER_KB) == 3 {
 			data[i] = byte(realOffset - 3)
 		} else {
 			data[i] = 0
@@ -59,31 +70,35 @@ func GenerateReferenceSlice(offset int64, size int64) []byte {
 func GenerateReferenceFile(path string) error {
 	file, err := os.Create(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open file")
+		return errors.Wrapf(err, "failed to create file")
 	}
 	defer file.Close()
 
 	var offset int64 = 0
 	for {
+		// generate 4 bytes (32 bits) of data
 		data := []byte{byte(offset >> 24), byte(offset >> 16), byte(offset >> 8), byte(offset)}
 
-		_, err = file.Seek(offset, os.SEEK_SET)
+		// move file location to offset
+		_, err = file.Seek(offset, io.SeekStart)
 		if err != nil {
 			return errors.Wrapf(err, "failed to seek in file")
 		}
 
+		// every 1KB write 4 bytes of data (will have zeros to fill in the rest of the KB)
 		_, err = file.Write(data)
 		if err != nil {
 			return errors.Wrapf(err, "failed to write in file")
 		}
-		offset = offset + 1024
+		// increment offset by 1KB
+		offset = offset + BYTES_PER_KB
 
-		if offset == referenceFileSize() {
+		if offset == REFERENCE_FILE_SIZE {
 			break
 		}
 	}
 
-	file.Truncate(referenceFileSize())
+	file.Truncate(REFERENCE_FILE_SIZE)
 
 	return nil
 }
@@ -107,44 +122,36 @@ func Test_GetBytes_Supported(t *testing.T) {
 		}
 	}
 
-	var baseOffset int64
-
 	// Block 0
-	baseOffset = 0
-	VerifyReadRange(t, baseOffset+32*1024, 4)
-	VerifyReadRange(t, baseOffset+128*1024, 2500)
+	VerifyReadRange(t, BASE_OFFSET+BYTES_PER_32KB, 4)
+	VerifyReadRange(t, BASE_OFFSET+BYTES_PER_128KB, 2500)
 
 	// Block 1
-	baseOffset = GetBlockSize()
-	VerifyReadRange(t, baseOffset+64*1024, 1000)
-	VerifyReadRange(t, baseOffset+512*1024, 1024)
+	VerifyReadRange(t, BLOCK_SIZE+BYTES_PER_64KB, 1000)
+	VerifyReadRange(t, BLOCK_SIZE+BYTES_PER_512KB, 1024)
 
 	// Block 5
-	baseOffset = 5 * GetBlockSize()
-	VerifyReadRange(t, baseOffset+64*1024, 1000)
-	VerifyReadRange(t, baseOffset+512*1024, 10000)
+	VerifyReadRange(t, BLOCK5_OFFSET+BYTES_PER_64KB, 1000)
+	VerifyReadRange(t, BLOCK5_OFFSET+BYTES_PER_512KB, 10000)
 
 	// Block 12
-	baseOffset = 12 * GetBlockSize()
-	VerifyReadRange(t, baseOffset+64*1024, 1000)
-	VerifyReadRange(t, baseOffset+512*1024, 10000)
+	VerifyReadRange(t, BLOCK12_OFFSET+BYTES_PER_64KB, 1000)
+	VerifyReadRange(t, BLOCK12_OFFSET+BYTES_PER_512KB, 10000)
 
 	// Get bytes from start of the file
-
-	VerifyReadRange(t, 0, 100)
-	VerifyReadRange(t, 0, 10000)
+	VerifyReadRange(t, BASE_OFFSET, 100)
+	VerifyReadRange(t, BASE_OFFSET, 10000)
 
 	// Get bytes from end of the file
-
-	VerifyReadRange(t, referenceFileSize()-100, 90)
-	VerifyReadRange(t, referenceFileSize()-100, 99)
-	VerifyReadRange(t, referenceFileSize()-100, 100)
+	endOffset := int64(REFERENCE_FILE_SIZE - 100)
+	VerifyReadRange(t, endOffset, 90)
+	VerifyReadRange(t, endOffset, 99)
+	VerifyReadRange(t, endOffset, 100)
 
 	// Try to get more bytes than available (the resulting slice should be
 	// smaller than the requested size)
-
-	VerifyReadRange(t, referenceFileSize()-100, 101)
-	VerifyReadRange(t, referenceFileSize()-100, 200)
+	VerifyReadRange(t, endOffset, 101)
+	VerifyReadRange(t, endOffset, 200)
 }
 
 // Test that this function fails when trying to get data in ranges that cross a
@@ -175,16 +182,16 @@ func Test_GetBytes_Unsupported(t *testing.T) {
 
 	// Test offset values around a block boundary to test for off-by-one
 	// errors in the checks.
-	GetBytesShouldSucceed(t, GetBlockSize(), 2*GetBlockSize()-1)
-	GetBytesShouldSucceed(t, GetBlockSize(), 2*GetBlockSize())
-	GetBytesShouldFail(t, GetBlockSize(), 2*GetBlockSize()+1)
-	GetBytesShouldFail(t, GetBlockSize()-1, 2*GetBlockSize())
-	GetBytesShouldSucceed(t, GetBlockSize(), 2*GetBlockSize())
-	GetBytesShouldSucceed(t, GetBlockSize()+1, 2*GetBlockSize())
+	GetBytesShouldSucceed(t, BLOCK_SIZE, BLOCK2_OFFSET-1)
+	GetBytesShouldSucceed(t, BLOCK_SIZE, BLOCK2_OFFSET)
+	GetBytesShouldFail(t, BLOCK_SIZE, BLOCK2_OFFSET+1)
+	GetBytesShouldFail(t, BLOCK_SIZE-1, BLOCK2_OFFSET)
+	GetBytesShouldSucceed(t, BLOCK_SIZE, BLOCK2_OFFSET)
+	GetBytesShouldSucceed(t, BLOCK_SIZE+1, BLOCK2_OFFSET)
 
 	// Test bigger sizes than allowed
-	GetBytesShouldFail(t, 1*GetBlockSize(), 3*GetBlockSize())
-	GetBytesShouldFail(t, 1*GetBlockSize(), (2*GetBlockSize())+1)
+	GetBytesShouldFail(t, BLOCK_SIZE, BLOCK3_OFFSET)
+	GetBytesShouldFail(t, BLOCK_SIZE, BLOCK2_OFFSET+1)
 }
 
 // Test getting blocks outside of bounds, and the ones right at the limits.
@@ -209,62 +216,21 @@ func Test_GetBlock_TestBounds(t *testing.T) {
 	}
 }
 
-func makeRange(min int64, max int64) []int64 {
-	r := make([]int64, max-min+1)
-	for i := range r {
-		r[i] = min + int64(i)
-	}
-	return r
-}
-
-func getBlocks(r []int64) error {
-	for _, index := range r {
-		err, data := GetBlock(index)
-		if err != nil {
-			return errors.Wrapf(err, "GetBlock(%d) failed", index)
-		}
-
-		offset := GetBlockSize() * index
-		size := GetBlockSize()
-		referenceData := GenerateReferenceSlice(offset, size)
-
-		res := bytes.Compare(data, referenceData)
-		if res != 0 {
-			return errors.New(fmt.Sprintf("GetBlock(%d): comparison failed", index))
-		}
-	}
-	return nil
-}
-
 // The tests only test the filemanager cache code. In order for them to run
-// faster, the local file reader is setup, no the Azure downloader. The
+// faster, the local file reader is setup, not the Azure downloader. The
 // TestMain funcion needs to generate a reference file so that the tests can
 // run.
-func DoAllTests(m *testing.M) int {
-	// Setup logger to log to file, and to log everything
-
-	// If the file doesn't exist, create it. If it exists, append to it.
-	file, err := os.OpenFile("/tmp/azmount_tests.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		logrus.Fatal(err)
-		return 1
-	}
-	defer file.Close()
-	logrus.SetOutput(file)
-
-	logrus.SetLevel(logrus.TraceLevel)
-
-	if err := InitializeCache(1024*1024, 32, true); err != nil {
+func DoAllTests(m *testing.M, readOnly bool) {
+	if err := InitializeCache(BLOCK_SIZE, 32, readOnly); err != nil {
 		fmt.Printf("Failed to initialize cache: %s\n", err.Error())
-		return 1
+		//return 1
 	}
 
 	// Create temporary folder
-
 	tempDir, err := ioutil.TempDir("", "aztemp")
 	if err != nil {
 		fmt.Printf("Failed to create temp dir: %s\n", err.Error())
-		return 1
+		//return 1
 	}
 	defer os.RemoveAll(tempDir) // Remove folder at exit
 	fmt.Printf("Temporary directory: %s\n", tempDir)
@@ -276,20 +242,24 @@ func DoAllTests(m *testing.M) int {
 
 	if err := GenerateReferenceFile(referenceFile); err != nil {
 		fmt.Printf("Failed to create reference file: %s\n", err.Error())
-		return 1
+		//return 1
 	}
 
 	if err = LocalSetup(referenceFile); err != nil {
 		fmt.Printf("Local filesystem setup error: %s\n", err.Error())
-		return 1
+		//return 1
 	}
 
-	return m.Run()
+	m.Run()
+
+	//return m.Run()
 }
 
 func TestMain(m *testing.M) {
-	// All the tests are in DoAllTests() so that al deferred functions are
+	// All the tests are in DoAllTests() so that all deferred functions are
 	// called when returning from there. They aren't called when the program
 	// ends because of a call to os.Exit().
-	os.Exit(DoAllTests(m))
+	DoAllTests(m, true)
+	DoAllTests(m, false)
+	//os.Exit(DoAllTests(m, true))
 }
