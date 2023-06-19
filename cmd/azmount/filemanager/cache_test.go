@@ -5,6 +5,7 @@ package filemanager
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -102,6 +103,12 @@ func GenerateReferenceFile(path string) error {
 	file.Truncate(REFERENCE_FILE_SIZE)
 
 	return nil
+}
+
+func GenerateRandomData(size int64) []byte {
+	data := make([]byte, size)
+	rand.Read(data)
+	return data
 }
 
 // Test reading different ranges of bytes from the file. None of them should
@@ -214,6 +221,139 @@ func Test_GetBlock_TestBounds(t *testing.T) {
 	err, _ = GetBlock(256)
 	if err.Error() != "block index over limit (256 > 255)" {
 		t.Errorf("GetBlock(-1) should have failed")
+	}
+}
+
+// Test writing different ranges of bytes into the cache. None of them should
+// cross a block boundary.
+func Test_SetBytes_Supported(t *testing.T) {
+	if IsReadOnly() {
+		t.Skip("Skipping write test because the cache is read-only")
+	}
+	ClearCache()
+
+	VerifyWriteRange := func(t *testing.T, offset int64, data []byte) {
+		err := SetBytes(offset, data)
+		if err != nil {
+			t.Errorf("SetBytes(%d) failed: %s", offset, err.Error())
+			return
+		}
+		_, referenceData := GetBytes(offset, offset+int64(len(data)))
+
+		// get slice of data that is same size as referenceData
+		// for testing data that is too large to write at the end of the file
+		res := bytes.Compare(data[:int64(len(referenceData))], referenceData)
+		if res != 0 {
+			fmt.Printf("referenceData: %v\n", referenceData)
+			fmt.Printf("data: %v\n", data)
+			t.Errorf("SetBytes(%d): comparison failed", offset)
+		}
+	}
+
+	// Block 0
+	VerifyWriteRange(t, BYTES_PER_32KB, GenerateRandomData(4))
+	VerifyWriteRange(t, BYTES_PER_128KB, GenerateRandomData(2500))
+
+	// Block 1
+	VerifyWriteRange(t, BLOCK_SIZE+BYTES_PER_64KB, GenerateRandomData(1000))
+	VerifyWriteRange(t, BLOCK_SIZE+BYTES_PER_512KB, GenerateRandomData(1024))
+
+	// Block 5
+	VerifyWriteRange(t, BLOCK5_OFFSET+BYTES_PER_64KB, GenerateRandomData(1000))
+	VerifyWriteRange(t, BLOCK5_OFFSET+BYTES_PER_512KB, GenerateRandomData(10000))
+
+	// Block 12
+	VerifyWriteRange(t, BLOCK12_OFFSET+BYTES_PER_64KB, GenerateRandomData(1000))
+	VerifyWriteRange(t, BLOCK12_OFFSET+BYTES_PER_512KB, GenerateRandomData(10000))
+
+	// Set bytes from start of the file
+	VerifyWriteRange(t, BASE_OFFSET, GenerateRandomData(100))
+	VerifyWriteRange(t, BASE_OFFSET, GenerateRandomData(10000))
+
+	// Set bytes from end of the file
+	endOffset := int64(REFERENCE_FILE_SIZE - 100)
+
+	VerifyWriteRange(t, endOffset, GenerateRandomData(90))
+	VerifyWriteRange(t, endOffset, GenerateRandomData(99))
+	VerifyWriteRange(t, endOffset, GenerateRandomData(100))
+
+	// Try to write more bytes than available (the resulting slice should be
+	// smaller than the requested size)
+	VerifyWriteRange(t, endOffset, GenerateRandomData(101))
+	VerifyWriteRange(t, endOffset, GenerateRandomData(200))
+}
+
+// Test that this function fails when trying to write data in ranges that cross a
+// block boundary
+func Test_SetBytes_Unsupported(t *testing.T) {
+	if IsReadOnly() {
+		t.Skip("Skipping write test because the cache is read-only")
+	}
+	ClearCache()
+
+	SetBytesShouldFail := func(t *testing.T, offset int64, data []byte) {
+		err := SetBytes(offset, data)
+		if err == nil {
+			t.Errorf("SetBytes(%d) should have failed", offset)
+		}
+	}
+
+	SetBytesShouldSucceed := func(t *testing.T, offset int64, data []byte) {
+		err := SetBytes(offset, data)
+		if err != nil {
+			t.Errorf("SetBytes(%d) should have succeeded", offset)
+		}
+	}
+
+	// Generate random data to write
+	dataBlock := GenerateRandomData(BLOCK_SIZE)
+	twoDataBlocks := GenerateRandomData(2 * BLOCK_SIZE)
+	largeData := GenerateRandomData(REFERENCE_FILE_SIZE + 1)
+
+	// Test negative start index
+	SetBytesShouldFail(t, -1, dataBlock)
+
+	// Test data larger than a block
+	SetBytesShouldFail(t, 100, largeData)
+
+	// Test offset larger than file
+	SetBytesShouldFail(t, REFERENCE_FILE_SIZE+1, dataBlock)
+
+	// Test offset values around a block boundary to test for off-by-one
+	// errors in the checks.
+	SetBytesShouldSucceed(t, BLOCK_SIZE, dataBlock) // can write up to a block of data
+	SetBytesShouldFail(t, BLOCK_SIZE-1, dataBlock)  // crossing a block boundary is not allowed
+	SetBytesShouldFail(t, BLOCK_SIZE+1, dataBlock)
+	SetBytesShouldFail(t, BLOCK_SIZE, twoDataBlocks)
+	SetBytesShouldFail(t, BLOCK_SIZE-1, twoDataBlocks)
+	SetBytesShouldFail(t, BLOCK_SIZE+1, twoDataBlocks)
+}
+
+// Test setting blocks outside of bounds, and the ones right at the limits.
+func Test_SetBlock_TestBounds(t *testing.T) {
+	if IsReadOnly() {
+		t.Skip("Skipping write test because the cache is read-only")
+	}
+	ClearCache()
+
+	// Generate random data to write
+	data := GenerateRandomData(BLOCK_SIZE)
+
+	err := SetBlock(-1, 0, data)
+	if err.Error() != "invalid block index (-1)" {
+		t.Errorf("SetBlock(-1) should have failed")
+	}
+	err = SetBlock(0, 0, data)
+	if err != nil {
+		t.Errorf("SetBlock(0) should have succeeded: %s", err.Error())
+	}
+	err = SetBlock(255, 0, data)
+	if err != nil {
+		t.Errorf("SetBlock(255) should have succeeded: %s", err.Error())
+	}
+	err = SetBlock(256, 0, data)
+	if err.Error() != "block index over limit (256 > 255)" {
+		t.Errorf("SetBlock(-1) should have failed")
 	}
 }
 

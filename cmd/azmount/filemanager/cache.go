@@ -102,6 +102,25 @@ func IsReadOnly() bool {
 	return fm.readOnly
 }
 
+// Utility function to check if block is in the cache and download it if not
+func DownloadBlock(blockIndex int64) ([]byte, error) {
+	// Check if this block is in the cache
+	i, ok := fm.cache.Get(blockIndex)
+	if ok {
+		bytes, ok := i.(*[]byte)
+		if !ok {
+			return nil, fmt.Errorf("DownloadBlock: cast to bytes failed for block %d", blockIndex)
+		}
+		return *bytes, nil
+	}
+	// If it isn't in the cache, download it
+	err, dat := fm.downloadBlock(blockIndex)
+	if err != nil {
+		return []byte{}, errors.Wrapf(err, "can't download block")
+	}
+	return dat, nil
+}
+
 func GetBlock(blockIndex int64) (error, []byte) {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
@@ -118,20 +137,9 @@ func GetBlock(blockIndex int64) (error, []byte) {
 		return errors.New(errorString), []byte{}
 	}
 
-	// Check if this block is in the cache
-	i, ok := fm.cache.Get(blockIndex)
-	if ok {
-		bytes, ok := i.(*[]byte)
-		if !ok {
-			return fmt.Errorf("cast failed for block %d", blockIndex), nil
-		}
-		return nil, *bytes
-	}
-
-	// If it isn't in the cache, download it
-	err, dat := fm.downloadBlock(blockIndex)
+	dat, err := DownloadBlock(blockIndex)
 	if err != nil {
-		return errors.Wrapf(err, "can't download block"), []byte{}
+		return err, []byte{}
 	}
 
 	// Save data to the cache
@@ -156,7 +164,6 @@ func GetBytes(offset int64, to int64) (error, []byte) {
 		errorString := fmt.Sprintf("GetBytes(%d, %d): invalid pointers", offset, to)
 		return errors.New(errorString), []byte{}
 	}
-
 	// This function is always asked to read 4KB aligned to a 4KB boundary, so
 	// there is never a risk of having to cross block boundaries. However,
 	// check that this is actually true in case that changes in the future.
@@ -175,12 +182,9 @@ func GetBytes(offset int64, to int64) (error, []byte) {
 	return err, dat[offsetInsideBlock:toInsideBlock]
 }
 
-func SetBlock(offset int64, data []byte) error {
+func SetBlock(blockIndex int64, blockOffset int64, data []byte) error {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
-
-	blockIndex := offset / fm.blockSize
-	offsetInsideBlock := offset - (blockIndex * fm.blockSize)
 
 	// Check bounds
 	if blockIndex < 0 {
@@ -194,24 +198,13 @@ func SetBlock(offset int64, data []byte) error {
 		return errors.New(errorString)
 	}
 
-	// Check if this block is in the cache
-	var content *[]byte
-	i, ok := fm.cache.Get(blockIndex)
-	if ok {
-		content, ok = i.(*[]byte)
-		if !ok {
-			return fmt.Errorf("cast failed for block %d", blockIndex)
-		}
-	} else {
-		err, dat := fm.downloadBlock(blockIndex)
-		if err != nil {
-			return errors.Wrapf(err, "can't download block")
-		}
-
-		content = &dat
+	dat, err := DownloadBlock(blockIndex)
+	if err != nil {
+		return err
 	}
+	content := &dat
 
-	copy((*content)[offsetInsideBlock:], data)
+	copy((*content)[blockOffset:], data)
 	fm.cache.Add(blockIndex, content)
 
 	return nil
@@ -219,20 +212,20 @@ func SetBlock(offset int64, data []byte) error {
 
 func SetBytes(offset int64, data []byte) error {
 	if offset < 0 {
-		errorString := fmt.Sprintf("GetBytes(%d): negative pointer", offset)
+		errorString := fmt.Sprintf("SetBytes(%d): negative pointer", offset)
 		return errors.New(errorString)
 	}
 
 	var to int64 = offset + int64(len(data))
 
-	// If going over the end of the file, return fewer bytes than requested
+	// If going over the end of the file, write fewer bytes than requested
 	if to > fm.contentLength {
 		to = fm.contentLength
 	}
 
 	// The end must go after the start
 	if offset > to {
-		errorString := fmt.Sprintf("GetBytes(%d, %d): invalid pointers", offset, to)
+		errorString := fmt.Sprintf("SetBytes(%d, %d): invalid pointers", offset, to)
 		return errors.New(errorString)
 	}
 
@@ -245,7 +238,11 @@ func SetBytes(offset int64, data []byte) error {
 		errorString := fmt.Sprintf("SetBytes(%d, %d): unsupported", offset, to)
 		return errors.New(errorString)
 	}
+	blockIndex := offset / fm.blockSize
+	offsetInsideBlock := offset - (blockIndex * fm.blockSize)
 
-	err := SetBlock(offset, data)
-	return err
+	// get number of bytes to write
+	numBytesToWrite := to - offset
+
+	return SetBlock(blockIndex, offsetInsideBlock, data[:numBytesToWrite])
 }
