@@ -130,6 +130,7 @@ func (certState *CertState) Attest(maa MAA, runtimeDataBytes []byte, uvmInformat
 			}
 		}
 	} else {
+		//In case the initialCerts are not properly configured, we should fall back on fetching the vcekCert remotely
 		if uvmInformation.InitialCerts.VcekCert == "" || uvmInformation.InitialCerts.CertificateChain == "" {
 			SNPReportBytes, inittimeDataBytes, vcekCertChain, err = certState.refreshSNPReportAndCertChain(uvmInformation.EncodedSecurityPolicy, runtimeDataBytes)
 			if err != nil {
@@ -158,7 +159,6 @@ func (certState *CertState) Attest(maa MAA, runtimeDataBytes []byte, uvmInformat
 
 func (certState *CertState) refreshSNPReportAndCertChain(securityPolicy string, runtimeDataBytes []byte) ([]byte, []byte, []byte, error) {
 	var SNPReport SNPAttestationReport
-	// TCB values still don't match, try retrieving the SNP report again
 	SNPReportBytes, inittimeDataBytes, err := GetSNPReport(securityPolicy, runtimeDataBytes)
 	if err != nil {
 		return nil, nil, nil, errors.Wrapf(err, "failed to retrieve new attestation report")
