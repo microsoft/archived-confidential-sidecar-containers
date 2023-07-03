@@ -101,7 +101,7 @@ func main() {
 	info := RemoteFilesystemsInformation{}
 	err = json.Unmarshal(bytes, &info)
 	if err != nil {
-		logrus.Fatalf("Failed to unmarshal: %s", err.Error())
+		logrus.Fatalf("Failed to unmarshal base64 string: %s", err.Error())
 	}
 
 	// populate missing attributes in KeyBlob

@@ -156,7 +156,7 @@ func main() {
 
 	if *localFilePath != "" {
 		logrus.Infof("Setting up local filesystem...")
-		if err = filemanager.LocalSetup(*localFilePath); err != nil {
+		if err = filemanager.LocalSetup(*localFilePath, readOnlyBool); err != nil {
 			logrus.Fatalf("Local filesystem setup error: " + err.Error())
 		}
 		logrus.Infof("Local filesystem set up")

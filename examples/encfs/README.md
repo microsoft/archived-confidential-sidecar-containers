@@ -119,9 +119,7 @@ az keyvault key list --hsm-name <MHSM NAME> -o table
 ```
 
 #### 9. Encrypted Filesystem
-The user needs to instantiate an [Azure Storage Container](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-blobs-upload) onto which the encrypted filesystem will be uploaded. The roles *Reader* and *Storage Blob Reader* roles need to be assigned to the user-assigned managed identity. The url of the created storage blob needs to be copied into [`encfs-sidecar-args.json`](encfs-sidecar-args.json#L5) file. 
-
-At this point, the `encfs-sidecar-args.json` file should be completely filled out and the user needs to base64 encode the contents and copy it to [`EncfsSideCarArgs`](aci-arm-template.json#L36).
+The user needs to instantiate an [Azure Storage Container](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-create?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&bc=%2Fazure%2Fstorage%2Fblobs%2Fbreadcrumb%2Ftoc.json&tabs=azure-portal) onto which the encrypted filesystem will be uploaded. The roles *Reader* and *Storage Blob Reader* roles need to be assigned to the user-assigned managed identity. Additionally, the role of *Storage Blob Contributor* needs to be assigned for a read-write filesystem.
 
 The script `generatefs/generatefs.sh` creates `encfs.img` with the contents of the `generatefs/filesystem` directory. You may need to adjust the size of the image in the script, as it isn't calculated automatically. 
 
@@ -153,9 +151,13 @@ lost+found  test.txt
 [!] Closing device...
 ```
 
-The user needs to upload the blob to the previously generated storage container 
+The user needs to upload the blob to the previously generated storage container using [azcopy] (https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&bc=%2Fazure%2Fstorage%2Fblobs%2Fbreadcrumb%2Ftoc.json) or by uploading to the Azure Portal.
 
-```azcopy copy --blob-type=PageBlob ./generatefs/encfs.img 'https://<storage-container-uri>.blob.core.windows.net/private-container/encfs.img?<SAS_token_to_container_with_write_create_read_permissions>```
+```azcopy copy --blob-type=PageBlob ./generatefs/encfs.img 'https://<storage-container-uri>.blob.core.windows.net/private-container/encfs.img```
+
+The url of the uploaded blob needs to be copied into [`encfs-sidecar-args.json`](encfs-sidecar-args.json#L5) file. 
+
+At this point, the `encfs-sidecar-args.json` file should be completely filled out and the user needs to base64 encode the contents and copy it to [`EncfsSideCarArgs`](aci-arm-template.json#L36).
 
 #### 10. Deployment
 

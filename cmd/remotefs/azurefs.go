@@ -134,11 +134,11 @@ func mountAzureFile(tempDir string, index int, azureImageUrl string, azureImageU
 		// Timeout after 10 seconds
 		count++
 		if count == 1000 {
-			return "", errors.New("timed out")
+			return "", errors.Wrapf(err, "timed out while waiting for encrypted filesystem image")
 		}
 		timeSleep(60 * time.Millisecond)
 	}
-	logrus.Debugf("Found file")
+	logrus.Debugf("Encrypted file system image found: %s", imageLocalFile)
 
 	return imageLocalFile, nil
 }
