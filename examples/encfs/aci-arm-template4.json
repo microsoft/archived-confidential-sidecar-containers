@@ -4,7 +4,7 @@
     "parameters": {
         "containerGroupName": {
             "type": "string",
-            "defaultValue": "aciEncfsSidecarTestWriteTwoFiles",
+            "defaultValue": "aciEncfsSidecarTestWriteSecondFile",
             "metadata": {
                 "description": "Encrypted filesystem sidecar example"
             }
@@ -45,29 +45,6 @@
                                 "requests": {
                                     "cpu": 1,
                                     "memoryInGb": 2
-                                }
-                            },
-                            "volumeMounts": [
-                                {
-                                    "name": "remotemounts",
-                                    "mountPath": "/mnt/remote"
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "name": "test-encfs-container-write",
-                        "properties": {
-                            "command": [
-                                "/bin/sh",
-                                "-c",
-                                "COUNTER=0; while true; do echo Counter is $COUNTER >> /mnt/remote/share/test_write1.txt; let COUNTER++; sleep 1; done"
-                            ],
-                            "image": "docker.io/alpine:3.17.1",
-                            "resources": {
-                                "requests": {
-                                    "cpu": 0.5,
-                                    "memoryInGb": 1
                                 }
                             },
                             "volumeMounts": [
