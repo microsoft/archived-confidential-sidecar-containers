@@ -59,7 +59,7 @@
             "name": "test-encfs-container",
             "properties": {
               "command": [
-                "/bin/ash",
+                "/bin/sh",
                 "-c",
                 "while true; do cat /mnt/remote/share/test.txt | /usr/bin/head -n 20; sleep 1; done"
               ],

@@ -1,4 +1,4 @@
-FROM golang:latest as build
+FROM golang:1.19.10 as build
 
 COPY . src
 RUN cd src &&  CGO_ENABLED=0 GOOS=linux GOPATH=$(path) go build -o /azmount github.com/Microsoft/confidential-sidecar-containers/cmd/azmount

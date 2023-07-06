@@ -151,7 +151,7 @@ lost+found  test.txt
 [!] Closing device...
 ```
 
-The user needs to upload the blob to the previously generated storage container using [azcopy] (https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&bc=%2Fazure%2Fstorage%2Fblobs%2Fbreadcrumb%2Ftoc.json) or by uploading to the Azure Portal.
+The user needs to upload the blob to the previously generated storage container by uploading to the Azure Portal or using [azcopy] (https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&bc=%2Fazure%2Fstorage%2Fblobs%2Fbreadcrumb%2Ftoc.json).
 
 ```azcopy copy --blob-type=PageBlob ./generatefs/encfs.img 'https://<storage-container-uri>.blob.core.windows.net/private-container/encfs.img```
 
