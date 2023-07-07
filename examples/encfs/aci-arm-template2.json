@@ -33,10 +33,10 @@
                             "environmentVariables": [
                                 {
                                     "name": "EncfsSideCarArgs",
-                                    "value": "<base64-std-encodes-string-of-sidecar-args>"
+                                    "value": "ew0KICAgImF6dXJlX2ZpbGVzeXN0ZW1zIjogWw0KICAgICAgew0KICAgICAgICAgIm1vdW50X3BvaW50IjogIi9tbnQvcmVtb3RlL3NoYXJlIiwNCiAgICAgICAgICJhenVyZV91cmwiOiAiaHR0cHM6Ly9oZ2Fydmlzb25zdG9yYWdlLmJsb2IuY29yZS53aW5kb3dzLm5ldC9wcml2YXRlLWNvbnRhaW5lci9lbmNmcy5pbWciLA0KICAgICAgICAgImF6dXJlX3VybF9wcml2YXRlIjogdHJ1ZSwNCiAgICAgICAgICJyZWFkX29ubHkiOiBmYWxzZSwNCiAgICAgICAgICJrZXkiOiB7DQogICAgICAgICAgICAia2lkIjogImVuY2ZzLWRlbW8ta2V5LWhnYXJ2aXNvbiIsDQogICAgICAgICAgICAiYXV0aG9yaXR5Ijogew0KICAgICAgICAgICAgICAgImVuZHBvaW50IjogInNoYXJlZGV1czIuZXVzMi50ZXN0LmF0dGVzdC5henVyZS5uZXQiDQogICAgICAgICAgICB9LA0KICAgICAgICAgICAgImFrdiI6IHsNCiAgICAgICAgICAgICAgICJlbmRwb2ludCI6ICJhY2NtaHNtLm1hbmFnZWRoc20uYXp1cmUubmV0Ig0KICAgICAgICAgICAgfQ0KICAgICAgICAgfQ0KICAgICAgfQ0KICAgXQ0KfQ=="
                                 }
                             ],
-                            "image": "mcr.microsoft.com/aci/encfs:2.2",
+                            "image": "fishersnpregistry.azurecr.io/hgarvisonencfs:7.0",
                             "securityContext": {
                                 "privileged": true,
                                 "allowPrivilegeEscalation": true
@@ -61,7 +61,81 @@
                             "command": [
                                 "/bin/sh",
                                 "-c",
-                                "COUNTER=0; while true; do echo Counter is $COUNTER >> /mnt/remote/share/test_write.txt; let COUNTER++; sleep 1; done"
+                                "COUNTER=0; while true; do echo Counter is $COUNTER > /mnt/remote/share/test_write.txt; let COUNTER++; sleep 1; done"
+                            ],
+                            "image": "docker.io/alpine:3.17.1",
+                            "resources": {
+                                "requests": {
+                                    "cpu": 0.5,
+                                    "memoryInGb": 1
+                                }
+                            },
+                            "volumeMounts": [
+                                {
+                                    "name": "remotemounts",
+                                    "mountPath": "/mnt/remote"
+                                }
+                            ],
+                            "ports": [
+                                {
+                                    "port": 8000
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "test-encfs-container-write2",
+                        "properties": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "COUNTER2=0; while true; do echo Counter2 is $COUNTER2 > /mnt/remote/share/test_write.txt; let COUNTER2++; sleep 1; done"
+                            ],
+                            "image": "docker.io/alpine:3.17.1",
+                            "resources": {
+                                "requests": {
+                                    "cpu": 0.5,
+                                    "memoryInGb": 1
+                                }
+                            },
+                            "volumeMounts": [
+                                {
+                                    "name": "remotemounts",
+                                    "mountPath": "/mnt/remote"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "test-encfs-container-write3",
+                        "properties": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "COUNTER3=0; while true; do echo Counter3 is $COUNTER3 >> /mnt/remote/share/test_write2.txt; let COUNTER3++; sleep 1; done"
+                            ],
+                            "image": "docker.io/alpine:3.17.1",
+                            "resources": {
+                                "requests": {
+                                    "cpu": 0.5,
+                                    "memoryInGb": 1
+                                }
+                            },
+                            "volumeMounts": [
+                                {
+                                    "name": "remotemounts",
+                                    "mountPath": "/mnt/remote"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "test-encfs-container-read",
+                        "properties": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "while true; do cat /mnt/remote/share/test_write.txt | /usr/bin/head -n 20; sleep 1; done"
                             ],
                             "image": "docker.io/alpine:3.17.1",
                             "resources": {
