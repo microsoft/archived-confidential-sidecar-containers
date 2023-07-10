@@ -4,7 +4,7 @@
 # Licensed under the MIT License.
 
 set -e
-pushd $0
+pushd $(dirname $0)
 
 # This script builds the encrypted filesystem container
 
