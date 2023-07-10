@@ -3,6 +3,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+pushd $0
 set -e
 
 # This script builds the encrypted filesystem container
@@ -26,3 +27,4 @@ docker build --tag encfs -f Dockerfile.encfs .
 
 # clean up
 rm -rf bin
+popd
