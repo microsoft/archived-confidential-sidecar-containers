@@ -32,10 +32,10 @@ jobs:
         
       - name: Log in to Azure Container Registry
         run: |
-          az acr login \ 
+          az acr login \
             --name ${{ secrets.REGISTRY_NAME }} \
             --username ${{ secrets.REGISTRY_NAME }} \
-            --password ${{ secrets.REGISTRY_PASSWORD }} 
+            --password ${{ secrets.REGISTRY_PASSWORD }}
           
       - name: Get Branch Name
         id: get_branch_name
