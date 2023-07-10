@@ -56,6 +56,7 @@ jobs:
         with:
           file: docker/encfs/Dockerfile.encfs
           push: true
+          context: docker/encfs/
           tags: |
             ${{ secrets.REGISTRY_NAME }}.${{ secrets.REGISTRY_DOMAIN }}/encfs:${{ steps.get_branch_name.outputs.branch_name }}
         

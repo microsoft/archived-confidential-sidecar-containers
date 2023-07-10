@@ -54,6 +54,7 @@ jobs:
         with:
           file: docker/skr/Dockerfile.skr
           push: true
+          context: docker/skr/
           tags: |
             ${{ secrets.REGISTRY_NAME }}.${{ secrets.REGISTRY_DOMAIN }}/skr:${{ steps.get_branch_name.outputs.branch_name }}
         
