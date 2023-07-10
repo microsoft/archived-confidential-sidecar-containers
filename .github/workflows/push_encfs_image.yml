@@ -56,4 +56,5 @@ jobs:
           docker/encfs/push.sh \
             ${{ secrets.REGISTRY_NAME }} \
             ${{ secrets.REGISTRY_DOMAIN }} \
-            encfs:${{ steps.get_branch_name.outputs.branch_name }}
+            encfs:${{ steps.get_branch_name.outputs.branch_name }} \
+            --skip-login
