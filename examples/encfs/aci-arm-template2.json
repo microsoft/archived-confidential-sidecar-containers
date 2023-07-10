@@ -33,10 +33,10 @@
                             "environmentVariables": [
                                 {
                                     "name": "EncfsSideCarArgs",
-                                    "value": "ew0KICAgImF6dXJlX2ZpbGVzeXN0ZW1zIjogWw0KICAgICAgew0KICAgICAgICAgIm1vdW50X3BvaW50IjogIi9tbnQvcmVtb3RlL3NoYXJlIiwNCiAgICAgICAgICJhenVyZV91cmwiOiAiaHR0cHM6Ly9oZ2Fydmlzb25zdG9yYWdlLmJsb2IuY29yZS53aW5kb3dzLm5ldC9wcml2YXRlLWNvbnRhaW5lci9lbmNmcy5pbWciLA0KICAgICAgICAgImF6dXJlX3VybF9wcml2YXRlIjogdHJ1ZSwNCiAgICAgICAgICJyZWFkX29ubHkiOiBmYWxzZSwNCiAgICAgICAgICJrZXkiOiB7DQogICAgICAgICAgICAia2lkIjogImVuY2ZzLWRlbW8ta2V5LWhnYXJ2aXNvbiIsDQogICAgICAgICAgICAiYXV0aG9yaXR5Ijogew0KICAgICAgICAgICAgICAgImVuZHBvaW50IjogInNoYXJlZGV1czIuZXVzMi50ZXN0LmF0dGVzdC5henVyZS5uZXQiDQogICAgICAgICAgICB9LA0KICAgICAgICAgICAgImFrdiI6IHsNCiAgICAgICAgICAgICAgICJlbmRwb2ludCI6ICJhY2NtaHNtLm1hbmFnZWRoc20uYXp1cmUubmV0Ig0KICAgICAgICAgICAgfQ0KICAgICAgICAgfQ0KICAgICAgfQ0KICAgXQ0KfQ=="
+                                    "value": "<base64-std-encodes-string-of-sidecar-args>"
                                 }
                             ],
-                            "image": "fishersnpregistry.azurecr.io/hgarvisonencfs:7.0",
+                            "image": "mcr.microsoft.com/aci/encfs:2.2",
                             "securityContext": {
                                 "privileged": true,
                                 "allowPrivilegeEscalation": true
