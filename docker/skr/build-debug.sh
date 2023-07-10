@@ -3,8 +3,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-pushd $0
 set -e
+pushd $0
 
 # This script builds the binaries and sets up the docker image
 
