@@ -41,4 +41,10 @@ jobs:
         run: docker/skr/build.sh
         
       - name: Push Image
-        run: docker/skr/push.sh ${{ secrets.REGISTRY_NAME }} ${{ secrets.REGISTRY_DOMAIN }} skr:${{ github.ref }}
+        uses: docker/build-push-action@v3
+        with:
+          file: docker/skr/Dockerfile.skr
+          push: true
+          tags: |
+            ${{ secrets.REGISTRY_NAME }}.${{ secrets.REGISTRY_DOMAIN }}/skr:${{ github.ref }}
+        

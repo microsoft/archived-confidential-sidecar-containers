@@ -43,4 +43,10 @@ jobs:
         run: docker/encfs/build.sh
         
       - name: Push Image
-        run: docker/encfs/push.sh ${{ secrets.REGISTRY_NAME }} ${{ secrets.REGISTRY_DOMAIN }} encfs:${{ github.ref }}
+        uses: docker/build-push-action@v3
+        with:
+          file: docker/encfs/Dockerfile.encfs
+          push: true
+          tags: |
+            ${{ secrets.REGISTRY_NAME }}.${{ secrets.REGISTRY_DOMAIN }}/encfs:${{ github.ref }}
+        
