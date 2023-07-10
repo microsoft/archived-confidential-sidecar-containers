@@ -31,7 +31,11 @@ jobs:
         uses: actions/checkout@v3
         
       - name: Log in to Azure Container Registry
-        run: az acr login --name $REGISTRY_NAME --username $REGISTRY_NAME --password $REGISTRY_PASSWORD 
+        run: |
+          az acr login \ 
+            --name ${{ secrets.REGISTRY_NAME }} \
+            --username ${{ secrets.REGISTRY_NAME }} \
+            --password ${{ secrets.REGISTRY_PASSWORD }} 
           
       - name: Get Branch Name
         id: get_branch_name
@@ -46,4 +50,8 @@ jobs:
         run: docker/skr/build.sh
         
       - name: Push Image
-        run: docker/skr/push.sh ${{ secrets.REGISTRY_NAME }} ${{ secrets.REGISTRY_DOMAIN }} skr:${{ steps.get_branch_name.outputs.branch_name }}
+        run: |
+          docker/skr/push.sh \
+            ${{ secrets.REGISTRY_NAME }} \
+            ${{ secrets.REGISTRY_DOMAIN }} \
+            skr:${{ steps.get_branch_name.outputs.branch_name }}
