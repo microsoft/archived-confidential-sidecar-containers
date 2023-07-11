@@ -10,7 +10,8 @@ the key assuming the release policy is satisfied with claims presented in the au
 token. If the key provided is RSA-HSM, the key_derivation object needs to be specified so that
 the tool can derive a symmetric key using the RSA key material and the key_derivation salt and label.
 For testing purposes, it is possible to pass the raw hexstring key as opposed to SKR information.
-Additionally, a read_only flag must be specified to determine if the filesystem is read-only or not.
+Additionally, a read_write flag must be specified to determine if the filesystem is read-write, otherwise the filesystem
+defaults to read-only.
 
 ```
 {
@@ -19,7 +20,7 @@ Additionally, a read_only flag must be specified to determine if the filesystem 
             "mount_point":"/remotemounts/share1",
             "azure_url":"https://samplename.blob.core.windows.net/public-container/image-encrypted-1.img",
             "azure_url_private": true,
-            "read_only": false,   
+            "read_write": false,   
             "key": {
                  "kid": "EncryptedFilesystemsContainer",
                  "kty": "RSA-HSM",
@@ -39,7 +40,6 @@ Additionally, a read_only flag must be specified to determine if the filesystem 
             "mount_point":"/remotemounts/share2",
             "azure_url":"https://myname.blob.core.windows.net/private-container/image-encrypted-2.img",
             "azure_url_private": true,
-            "read_only": true,
             "key": {
                  "kid": "EncryptedFilesystemsContainer",
                  "authority": {

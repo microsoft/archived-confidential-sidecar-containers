@@ -37,8 +37,8 @@ type FileManager struct {
 	// Function used to write block to raw filesystem image
 	uploadBlock func(blockIndex int64, data []byte) error
 
-	// Read-Only cache
-	readOnly bool
+	// Read-Write cache
+	readWrite bool
 }
 
 // Global state of the file manager
@@ -57,24 +57,24 @@ func onEvict(key interface{}, value interface{}) {
 	}
 }
 
-func InitializeCache(blockSize int, numBlocks int, readOnly bool) error {
+func InitializeCache(blockSize int, numBlocks int, readWrite bool) error {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
 
 	var cache *lru.Cache
 	var err error
 
-	if readOnly {
-		cache, err = lru.New(numBlocks)
-	} else {
+	if readWrite {
 		cache, err = lru.NewWithEvict(numBlocks, onEvict)
+	} else {
+		cache, err = lru.New(numBlocks)
 	}
 
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize RAM cache")
 	}
 	fm.cache = cache
-	fm.readOnly = readOnly
+	fm.readWrite = readWrite
 	fm.blockSize = int64(blockSize)
 
 	return nil
@@ -98,8 +98,8 @@ func GetBlockSize() int64 {
 	return fm.blockSize
 }
 
-func IsReadOnly() bool {
-	return fm.readOnly
+func IsReadWrite() bool {
+	return fm.readWrite
 }
 
 // Utility function to check if block is in the cache and download it if not

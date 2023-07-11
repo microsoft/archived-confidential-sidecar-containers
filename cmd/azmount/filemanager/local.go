@@ -10,13 +10,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func LocalSetup(filePath string, readOnly bool) error {
+func LocalSetup(filePath string, readWrite bool) error {
 	var file *os.File
 	var err error
-	if readOnly {
-		file, err = os.OpenFile(filePath, os.O_RDONLY, 0)
-	} else {
+	if readWrite {
 		file, err = os.OpenFile(filePath, os.O_RDWR, 0)
+	} else {
+		file, err = os.OpenFile(filePath, os.O_RDONLY, 0)
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file: %s", filePath)

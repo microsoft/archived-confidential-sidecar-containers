@@ -44,8 +44,8 @@ type AzureFilesystem struct {
 	// This is a testing key hexstring encoded to be used against the filesystem. This should
 	// be used only for testing.
 	RawKeyHexString string `json:"raw_key,omitempty"`
-	// This is a flag specifying if this file system is read only
-	ReadOnly bool `json:"read_only"`
+	// This is a flag specifying if this file system is read-write
+	ReadWrite bool `json:"read_write,omitempty"`
 }
 
 func usage() {

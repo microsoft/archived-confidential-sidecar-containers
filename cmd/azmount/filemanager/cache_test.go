@@ -227,7 +227,7 @@ func Test_GetBlock_TestBounds(t *testing.T) {
 // Test writing different ranges of bytes into the cache. None of them should
 // cross a block boundary.
 func Test_SetBytes_Supported(t *testing.T) {
-	if IsReadOnly() {
+	if !IsReadWrite() {
 		t.Skip("Skipping write test because the cache is read-only")
 	}
 	ClearCache()
@@ -286,7 +286,7 @@ func Test_SetBytes_Supported(t *testing.T) {
 // Test that this function fails when trying to write data in ranges that cross a
 // block boundary
 func Test_SetBytes_Unsupported(t *testing.T) {
-	if IsReadOnly() {
+	if !IsReadWrite() {
 		t.Skip("Skipping write test because the cache is read-only")
 	}
 	ClearCache()
@@ -331,7 +331,7 @@ func Test_SetBytes_Unsupported(t *testing.T) {
 
 // Test setting blocks outside of bounds, and the ones right at the limits.
 func Test_SetBlock_TestBounds(t *testing.T) {
-	if IsReadOnly() {
+	if !IsReadWrite() {
 		t.Skip("Skipping write test because the cache is read-only")
 	}
 	ClearCache()
@@ -361,8 +361,8 @@ func Test_SetBlock_TestBounds(t *testing.T) {
 // faster, the local file reader is setup, not the Azure downloader. The
 // TestMain funcion needs to generate a reference file so that the tests can
 // run.
-func DoAllTests(m *testing.M, readOnly bool) {
-	if err := InitializeCache(BLOCK_SIZE, NUM_BLOCKS, readOnly); err != nil {
+func DoAllTests(m *testing.M, readWrite bool) {
+	if err := InitializeCache(BLOCK_SIZE, NUM_BLOCKS, readWrite); err != nil {
 		fmt.Printf("Failed to initialize cache: %s\n", err.Error())
 	}
 
@@ -382,7 +382,7 @@ func DoAllTests(m *testing.M, readOnly bool) {
 		fmt.Printf("Failed to create reference file: %s\n", err.Error())
 	}
 
-	if err = LocalSetup(referenceFile, readOnly); err != nil {
+	if err = LocalSetup(referenceFile, readWrite); err != nil {
 		fmt.Printf("Local filesystem setup error: %s\n", err.Error())
 	}
 
@@ -391,7 +391,7 @@ func DoAllTests(m *testing.M, readOnly bool) {
 
 func TestMain(m *testing.M) {
 	// test read-only cache
-	DoAllTests(m, true)
-	// test read-write cache
 	DoAllTests(m, false)
+	// test read-write cache
+	DoAllTests(m, true)
 }

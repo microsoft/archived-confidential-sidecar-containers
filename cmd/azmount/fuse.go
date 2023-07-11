@@ -18,22 +18,22 @@ import (
 //
 //     https://github.com/bazil/fuse
 
-func FuseSetup(mountpoint string, readOnly bool) error {
+func FuseSetup(mountpoint string, readWrite bool) error {
 
 	var c *fuse.Conn
 	var err error
-	if readOnly {
+	if readWrite {
 		c, err = fuse.Mount(
 			mountpoint,
 			fuse.FSName("azure_filesystem"),
 			fuse.Subtype("azurefs"),
-			fuse.ReadOnly(),
 		)
 	} else {
 		c, err = fuse.Mount(
 			mountpoint,
 			fuse.FSName("azure_filesystem"),
 			fuse.Subtype("azurefs"),
+			fuse.ReadOnly(),
 		)
 	}
 
@@ -44,7 +44,7 @@ func FuseSetup(mountpoint string, readOnly bool) error {
 
 	// The execution flow stops here. This function is never left until there is
 	// a crash or the filesystem is unmounted by the user.
-	err = fs.Serve(c, FS{readOnly: readOnly})
+	err = fs.Serve(c, FS{readWrite: readWrite})
 	if err != nil {
 		return errors.Wrapf(err, "can't serve fuse")
 	}
@@ -53,16 +53,16 @@ func FuseSetup(mountpoint string, readOnly bool) error {
 
 // FS implements the file system.
 type FS struct {
-	readOnly bool
+	readWrite bool
 }
 
 func (fs FS) Root() (fs.Node, error) {
-	return Dir{readOnly: fs.readOnly}, nil
+	return Dir{readWrite: fs.readWrite}, nil
 }
 
 // Dir implements both Node and Handle for the root directory.
 type Dir struct {
-	readOnly bool
+	readWrite bool
 }
 
 func (Dir) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -73,7 +73,7 @@ func (Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 
 func (d Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	if name == "data" {
-		return File{readOnly: d.readOnly}, nil
+		return File{readWrite: d.readWrite}, nil
 	}
 	return nil, syscall.ENOENT
 }
@@ -88,15 +88,15 @@ func (Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 // File implements both Node and Handle for the file.
 type File struct {
-	readOnly bool
+	readWrite bool
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = 2
-	if f.readOnly {
-		a.Mode = 0o444
-	} else {
+	if f.readWrite {
 		a.Mode = 0o777
+	} else {
+		a.Mode = 0o444
 	}
 	a.Size = uint64(filemanager.GetFileSize())
 	return nil
