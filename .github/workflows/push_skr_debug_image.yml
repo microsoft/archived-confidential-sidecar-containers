@@ -1,7 +1,18 @@
 name: Push SKR Debug Image
 
 on:
-  [ pull_request, push ]:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/push_skr_debug_image.yml
+      - cmd/skr/**
+      - docker/skr/**
+      - tools/get-snp-report/bin/get-snp-report
+      - tools/get-snp-report/bin/get-fake-snp-report
+      - tools/get-snp-report/bin/verbose-report
+      
+  push:
     branches:
       - main
     paths:
