@@ -9,6 +9,8 @@ jobs:
   cleanup_registry:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
         
       - name: Log in to Azure Container Registry
         run: |
@@ -22,7 +24,6 @@ jobs:
           REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
         run: |
           repos=("skr" "skr_debug" "encfs")
-          git remote add origin https://github.com/microsoft/confidential-sidecar-containers
           branches=$(git ls-remote --heads origin)
           
           # Delete any tags which don't have a corresponding branch
