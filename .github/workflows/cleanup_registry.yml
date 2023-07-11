@@ -22,7 +22,8 @@ jobs:
           REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
         run: |
           repos=("skr" "skr_debug" "encfs")
-          branches=$(git ls-remote)
+          git remote add origin https://github.com/microsoft/confidential-sidecar-containers
+          branches=$(git ls-remote --heads origin)
           
           # Delete any tags which don't have a corresponding branch
           for repo in "${repos[@]}"; do
