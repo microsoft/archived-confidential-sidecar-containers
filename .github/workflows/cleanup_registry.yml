@@ -14,6 +14,9 @@ jobs:
         
       - name: Log in to Azure Container Registry
         run: |
+          az login \
+            --username ${{ secrets.REGISTRY_NAME }} \
+            --password ${{ secrets.REGISTRY_PASSWORD }}
           az acr login \
             --name ${{ secrets.REGISTRY_NAME }} \
             --username ${{ secrets.REGISTRY_NAME }} \
