@@ -102,18 +102,21 @@ func IsReadWrite() bool {
 	return fm.readWrite
 }
 
-// Utility function to check if block is in the cache and download it if not
-func DownloadBlock(blockIndex int64) ([]byte, error) {
-	// Check if this block is in the cache
+// Utility function to check if the block is in the cache and get it if it is
+func GetBlockFromCache(blockIndex int64) ([]byte, error) {
 	i, ok := fm.cache.Get(blockIndex)
 	if ok {
 		bytes, ok := i.(*[]byte)
 		if !ok {
-			return nil, fmt.Errorf("DownloadBlock: cast to bytes failed for block %d", blockIndex)
+			return nil, fmt.Errorf("GetBlockFromCache: cast to bytes failed for block %d", blockIndex)
 		}
 		return *bytes, nil
 	}
-	// If it isn't in the cache, download it
+	return nil, nil
+}
+
+// Utility function to download the block
+func DownloadBlock(blockIndex int64) ([]byte, error) {
 	err, dat := fm.downloadBlock(blockIndex)
 	if err != nil {
 		return []byte{}, errors.Wrapf(err, "can't download block")
@@ -137,9 +140,17 @@ func GetBlock(blockIndex int64) (error, []byte) {
 		return errors.New(errorString), []byte{}
 	}
 
-	dat, err := DownloadBlock(blockIndex)
+	// Check if this block is in the cache
+	dat, err := GetBlockFromCache(blockIndex)
 	if err != nil {
 		return err, []byte{}
+	}
+	// If it isn't in the cache, download it
+	if dat == nil {
+		dat, err = DownloadBlock(blockIndex)
+		if err != nil {
+			return err, []byte{}
+		}
 	}
 
 	// Save data to the cache
@@ -198,9 +209,17 @@ func SetBlock(blockIndex int64, blockOffset int64, data []byte) error {
 		return errors.New(errorString)
 	}
 
-	dat, err := DownloadBlock(blockIndex)
+	// Check if this block is in the cache
+	dat, err := GetBlockFromCache(blockIndex)
 	if err != nil {
 		return err
+	}
+	// If it isn't in the cache, download it
+	if dat == nil {
+		dat, err = DownloadBlock(blockIndex)
+		if err != nil {
+			return err
+		}
 	}
 	content := &dat
 
