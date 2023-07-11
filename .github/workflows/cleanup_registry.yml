@@ -22,7 +22,7 @@ jobs:
           REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
         run: |
           repos=("skr" "skr_debug" "encfs")
-          branches=$(git ls-remote --heads origin)
+          branches=$(git ls-remote)
           
           # Delete any tags which don't have a corresponding branch
           for repo in "${repos[@]}"; do
