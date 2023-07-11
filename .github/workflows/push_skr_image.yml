@@ -19,13 +19,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        
+
       - name: Log in to Azure Container Registry
-        run: |
-          az acr login \
-            --name ${{ secrets.REGISTRY_NAME }} \
-            --username ${{ secrets.REGISTRY_NAME }} \
-            --password ${{ secrets.REGISTRY_PASSWORD }}
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_NAME }}
+          username: ${{ secrets.REGISTRY_NAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
           
       - name: Get Branch Name
         id: get_branch_name
