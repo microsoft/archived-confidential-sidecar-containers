@@ -5,6 +5,13 @@ on:
   pull_request_target:
     branches:
       - main
+    paths:
+      - .github/workflows/push_encfs_image.yml
+      - cmd/azmount/**
+      - cmd/remotefs/**
+      - docker/encfs/**
+      - tools/get-snp-report/bin/get-snp-report
+      - tools/get-snp-report/bin/get-fake-snp-report
   push:
     branches:
       - main
