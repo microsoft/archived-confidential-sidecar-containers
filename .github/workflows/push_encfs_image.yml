@@ -41,15 +41,6 @@ jobs:
             --username ${{ secrets.REGISTRY_NAME }} \
             --password ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Get Branch Name
-        id: get_branch_name
-        run: |
-          if [ ${{ github.event_name }} == "pull_request" ]; then
-            echo "branch_name=$(echo ${{ github.head_ref }})" >> $GITHUB_OUTPUT
-          else
-            echo "branch_name=$(echo ${{ github.ref }})" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build Image
         run: docker/encfs/build.sh
 
@@ -58,5 +49,5 @@ jobs:
           docker/encfs/push.sh \
             ${{ secrets.REGISTRY_NAME }} \
             ${{ secrets.REGISTRY_DOMAIN }} \
-            encfs:${{ steps.get_branch_name.outputs.branch_name }} \
+            encfs:${{ github.head_ref }} \
             --skip-login
