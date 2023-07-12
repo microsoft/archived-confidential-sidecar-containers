@@ -24,7 +24,6 @@ on:
       - tools/get-snp-report/bin/verbose-report
       
 jobs:
-
   push-skr-debug-image: 
     name: Push SKR Debug Image
     runs-on: ubuntu-latest
