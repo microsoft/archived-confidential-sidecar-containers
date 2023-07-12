@@ -1,7 +1,7 @@
 name: Push SKR Image
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
     paths:
@@ -10,7 +10,7 @@ on:
       - docker/skr/**
       - tools/get-snp-report/bin/get-snp-report
       - tools/get-snp-report/bin/get-fake-snp-report
-      
+
   push:
     branches:
       - main
@@ -20,23 +20,25 @@ on:
       - docker/skr/**
       - tools/get-snp-report/bin/get-snp-report
       - tools/get-snp-report/bin/get-fake-snp-report
-      
-jobs:
 
-  push-skr-image: 
+jobs:
+  push-skr-image:
     name: Push SKR Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
       - name: Log in to Azure Container Registry
         run: |
           az acr login \
             --name ${{ secrets.REGISTRY_NAME }} \
             --username ${{ secrets.REGISTRY_NAME }} \
             --password ${{ secrets.REGISTRY_PASSWORD }}
-          
+
       - name: Get Branch Name
         id: get_branch_name
         run: |
@@ -45,10 +47,10 @@ jobs:
           else
             echo "branch_name=$(echo ${{ github.ref }})" >> $GITHUB_OUTPUT
           fi
-        
+
       - name: Build Image
         run: docker/skr/build.sh
-        
+
       - name: Push Image
         run: |
           docker/skr/push.sh \
