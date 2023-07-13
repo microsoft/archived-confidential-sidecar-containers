@@ -1,7 +1,8 @@
 name: Push SKR Debug Image
 
 on:
-  pull_request:
+  workflow_dispatch:
+  pull_request_target:
     branches:
       - main
     paths:
@@ -24,13 +25,15 @@ on:
       - tools/get-snp-report/bin/verbose-report
       
 jobs:
-
   push-skr-debug-image: 
     name: Push SKR Debug Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - name: Log in to Azure Container Registry
         run: |
@@ -44,8 +47,13 @@ jobs:
         
       - name: Push Image
         run: |
+          if [ ${{ github.event_name }} == "push" ]; then
+            branch_name=main
+          else  
+            branch_name=$(echo ${{ github.head_ref }})
+          fi
           docker/skr/push.sh \
             ${{ secrets.REGISTRY_NAME }} \
             ${{ secrets.REGISTRY_DOMAIN }} \
-            skr_debug:${{ github.head_ref }} \
+            skr_debug:$branch_name \
             --skip-login

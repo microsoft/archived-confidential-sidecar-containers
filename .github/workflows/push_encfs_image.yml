@@ -1,7 +1,8 @@
 name: Push Encrypted FS Image
 
 on:
-  pull_request:
+  workflow_dispatch:
+  pull_request_target:
     branches:
       - main
     paths:
@@ -21,16 +22,17 @@ on:
       - docker/encfs/**
       - tools/get-snp-report/bin/get-snp-report
       - tools/get-snp-report/bin/get-fake-snp-report
-    
-      
-jobs:
 
-  push-encfs-image: 
+jobs:
+  push-encfs-image:
     name: Push Encrypted FS Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - name: Log in to Azure Container Registry
         run: |
@@ -41,11 +43,16 @@ jobs:
 
       - name: Build Image
         run: docker/encfs/build.sh
-        
+
       - name: Push Image
         run: |
+          if [ ${{ github.event_name }} == "push" ]; then
+            branch_name=main
+          else  
+            branch_name=$(echo ${{ github.head_ref }})
+          fi
           docker/encfs/push.sh \
             ${{ secrets.REGISTRY_NAME }} \
             ${{ secrets.REGISTRY_DOMAIN }} \
-            encfs:${{ github.head_ref }} \
+            encfs:$branch_name \
             --skip-login
