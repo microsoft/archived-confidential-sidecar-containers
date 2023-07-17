@@ -31,8 +31,12 @@ type MAA struct {
 
 // MAA SNP Request Body class
 type maaReport struct {
-	SNPReport    string `json:"SnpReport"`
-	CertChain    string `json:"VcekCertChain"`
+	SNPReport string `json:"SnpReport"`
+	CertChain string `json:"VcekCertChain"`
+}
+
+type maaReportWithEndorsement struct {
+	*maaReport
 	Endorsements string `json:"Endorsements"`
 }
 
@@ -88,15 +92,39 @@ func newAttestSNPRequestBody(snpAttestationReport []byte, vcekCertChain []byte, 
 
 	// the maa report is a bundle of the signed attestation report and
 	// the cert chain that endorses the signing key
-	maaReport := maaReport{
-		SNPReport:    base64.URLEncoding.EncodeToString(snpAttestationReport),
-		CertChain:    base64.URLEncoding.EncodeToString(vcekCertChain),
-		Endorsements: base64urlEncodedmaaEndorsement,
-	}
+	// maaReport := maaReport{
+	// 	SNPReport:    base64.URLEncoding.EncodeToString(snpAttestationReport),
+	// 	CertChain:    base64.URLEncoding.EncodeToString(vcekCertChain),
+	// 	Endorsements: base64urlEncodedmaaEndorsement,
+	// }
 
-	maaReportJSONBytes, err := json.Marshal(maaReport)
-	if err != nil {
-		return nil, errors.Wrapf(err, "marhalling maa Report field failed")
+	// maaReportJSONBytes, err := json.Marshal(maaReport)
+	// if err != nil {
+	// 	return nil, errors.Wrapf(err, "marhalling maa Report field failed")
+	// }
+	var maaReportJSONBytes []byte
+
+	if len(uvmReferenceInfo) != 0 {
+		maaReportWithEndorsement := maaReportWithEndorsement{
+			maaReport: &maaReport{
+				SNPReport: base64.URLEncoding.EncodeToString(snpAttestationReport),
+				CertChain: base64.URLEncoding.EncodeToString(vcekCertChain),
+			},
+			Endorsements: base64urlEncodedmaaEndorsement,
+		}
+		maaReportJSONBytes, err = json.Marshal(maaReportWithEndorsement)
+		if err != nil {
+			return nil, errors.Wrapf(err, "marhalling maa Report field failed")
+		}
+	} else {
+		maaReport := maaReport{
+			SNPReport: base64.URLEncoding.EncodeToString(snpAttestationReport),
+			CertChain: base64.URLEncoding.EncodeToString(vcekCertChain),
+		}
+		maaReportJSONBytes, err = json.Marshal(maaReport)
+		if err != nil {
+			return nil, errors.Wrapf(err, "marhalling maa Report field failed")
+		}
 	}
 
 	request.Report = base64.URLEncoding.EncodeToString(maaReportJSONBytes)
