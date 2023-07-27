@@ -32,7 +32,7 @@ func tokenRefresher(credential azblob.TokenCredential) (t time.Duration) {
 	curentTokenFields := strings.Split(currentToken, ".")
 	logrus.Infof("current token fields: %v", curentTokenFields)
 
-	payload, err := base64.RawStdEncoding.DecodeString(curentTokenFields[1])
+	payload, err := base64.RawURLEncoding.DecodeString(curentTokenFields[1])
 	if err != nil {
 		logrus.Errorf("Error decoding base64 token payload: %v", err)
 		return 0

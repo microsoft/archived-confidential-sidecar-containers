@@ -1,6 +1,7 @@
 name: Push SKR Debug Image
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -24,10 +25,10 @@ on:
       - tools/get-snp-report/bin/verbose-report
       
 jobs:
-
   push-skr-debug-image: 
     name: Push SKR Debug Image
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -38,23 +39,18 @@ jobs:
             --name ${{ secrets.REGISTRY_NAME }} \
             --username ${{ secrets.REGISTRY_NAME }} \
             --password ${{ secrets.REGISTRY_PASSWORD }}
-          
-      - name: Get Branch Name
-        id: get_branch_name
-        run: |
-          if [ ${{ github.event_name }} == "pull_request" ]; then
-            echo "branch_name=$(echo ${{ github.head_ref }})" >> $GITHUB_OUTPUT
-          else
-            echo "branch_name=$(echo ${{ github.ref }})" >> $GITHUB_OUTPUT
-          fi
-        
       - name: Build Image
         run: docker/skr/build-debug.sh
         
       - name: Push Image
         run: |
+          if [ ${{ github.event_name }} == "push" ]; then
+            branch_name=main
+          else  
+            branch_name=$(echo ${{ github.head_ref }})
+          fi
           docker/skr/push.sh \
             ${{ secrets.REGISTRY_NAME }} \
             ${{ secrets.REGISTRY_DOMAIN }} \
-            skr_debug:${{ steps.get_branch_name.outputs.branch_name }} \
+            skr_debug:$branch_name \
             --skip-login

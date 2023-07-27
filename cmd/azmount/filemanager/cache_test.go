@@ -390,8 +390,8 @@ func DoAllTests(m *testing.M, readWrite bool) {
 }
 
 func TestMain(m *testing.M) {
-	// test read-only cache
-	DoAllTests(m, false)
 	// test read-write cache
 	DoAllTests(m, true)
+	// test read-only cache
+	DoAllTests(m, false)
 }
